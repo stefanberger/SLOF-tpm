@@ -88,6 +88,29 @@ log-base LOG-SIZE tpm-set-log-parameters
 \ internal API calls
 \
 
+: separator-event ( start-pcr end-pcr -- )
+    tpm-add-event-separators                          ( errcode )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-add-event-separators: " . cr
+    ELSE
+        drop
+    THEN
+;
+
+80 CONSTANT BCV_DEVICE_HDD
+
+: measure-hdd-mbr ( addr -- )
+    4 5 separator-event
+    200 BCV_DEVICE_HDD                         ( addr length bootdrv )
+    -rot                                       ( bootdrv addr length )
+    tpm-measure-bcv-mbr                        ( errcode )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-measure-hdd: " . cr
+    ELSE
+        drop
+    THEN
+;
+
 : unassert-physical-presence ( -- )
     tpm-unassert-physical-presence                    ( errcode )
     dup 0<> IF
