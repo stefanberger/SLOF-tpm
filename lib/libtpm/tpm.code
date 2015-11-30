@@ -44,3 +44,14 @@ PRIM(tpm_X2d_unassert_X2d_physical_X2d_presence)
 	PUSH;
 	TOS.n = tpm_unassert_physical_presence();
 MIRP
+
+/*************************************************************/
+/* Convey log address and size                               */
+/* SLOF:   tpm-set-log-parameters  ( addr size -- )          */
+/* LIBTPM: tpm_set_log_parameters(void *addr, uint64_t size) */
+/*************************************************************/
+PRIM(tpm_X2d_set_X2d_log_X2d_parameters)
+	int size = TOS.u; POP;
+	void *addr = TOS.a; POP;
+	tpm_set_log_parameters(addr, size);
+MIRP
