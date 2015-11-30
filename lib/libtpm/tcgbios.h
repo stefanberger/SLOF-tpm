@@ -16,6 +16,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define BCV_DEVICE_FLOPPY  0x0
+#define BCV_DEVICE_HDD     0x80
+
 struct pcpes;
 
 uint32_t tpm_start(void);
@@ -26,5 +29,8 @@ uint32_t tpm_get_logsize(void);
 uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes);
 bool tpm_log_event(struct pcpes *pcpes);
 uint32_t tpm_hash_all(const void *data, uint32_t datalen, void *hashptr);
+uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
+                             uint32_t length);
+uint32_t tpm_add_event_separators(uint32_t start_pcr, uint32_t end_pcr);
 
 #endif /* TCGBIOS_H */
