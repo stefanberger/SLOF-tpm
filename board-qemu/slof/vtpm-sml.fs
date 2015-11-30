@@ -120,6 +120,15 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: measure-scrtm ( -- )
+    tpm-measure-scrtm                                     ( -- errcode )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-measure-scrtm: " . cr
+    ELSE
+        drop
+    THEN
+;
+
 \
 \  TPM menu
 \
