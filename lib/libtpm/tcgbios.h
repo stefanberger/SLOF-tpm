@@ -37,6 +37,7 @@ uint32_t tpm_process_opcode(uint8_t op, bool verbose);
 uint32_t tpm_get_maximum_cmd_size(void);
 uint32_t tpm_pass_through_to_tpm(unsigned char *buf, uint32_t cmdlen);
 uint32_t tpm_driver_get_state(void);
+uint32_t tpm_driver_get_failure_reason(void);
 
 /* flags returned by tpm_get_state */
 #define TPM_STATE_ENABLED        1
