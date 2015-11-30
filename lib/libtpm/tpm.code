@@ -87,6 +87,16 @@ PRIM(tpm_X2d_driver_X2d_get_X2d_state)
 	TOS.n = tpm_driver_get_state();
 MIRP
 
+/*********************************************************/
+/* Firmware API                                          */
+/* SLOF:   tpm-driver-get_failuer-reason ( -- errcode)   */
+/* LIBTPM: errcode = tpm_driver_get_failure_reason(void) */
+/*********************************************************/
+PRIM(tpm_X2d_driver_X2d_get_X2d_failure_X2d_reason)
+	PUSH;
+	TOS.n = tpm_driver_get_failure_reason();
+MIRP
+
 /*****************************************************************/
 /* Firmware API                                                  */
 /* SLOF:   tpm-hash-all ( data-ptr data-len hash-ptr -- errcode) */
