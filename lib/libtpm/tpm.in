@@ -16,3 +16,4 @@
 cod(tpm-start)
 cod(tpm-finalize)
 cod(tpm-unassert-physical-presence)
+cod(tpm-set-log-parameters)
