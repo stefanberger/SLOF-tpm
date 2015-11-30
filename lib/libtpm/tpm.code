@@ -87,3 +87,13 @@ PRIM(tpm_X2d_hash_X2d_all)
 	void *dataptr = TOS.a;
 	TOS.n = tpm_hash_all(dataptr, datalen, hashptr);
 MIRP
+
+/************************************************/
+/* Get the size of the log                      */
+/* SLOF:   tpm-get-logsize         ( -- size )  */
+/* LIBTPM: logsize = tpm_get_logsize(void)      */
+/************************************************/
+PRIM(tpm_X2d_get_X2d_logsize)
+	PUSH;
+	TOS.n = tpm_get_logsize();
+MIRP
