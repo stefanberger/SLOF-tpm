@@ -35,6 +35,7 @@ uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
 uint32_t tpm_add_event_separators(uint32_t start_pcr, uint32_t end_pcr);
 uint32_t tpm_process_opcode(uint8_t op, bool verbose);
 uint32_t tpm_get_maximum_cmd_size(void);
+uint32_t tpm_pass_through_to_tpm(unsigned char *buf, uint32_t cmdlen);
 
 /* flags returned by tpm_get_state */
 #define TPM_STATE_ENABLED        1
