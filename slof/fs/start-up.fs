@@ -56,6 +56,13 @@
 ;
 
 : (boot?) ( -- )
+   \ last step before we boot we give up physical presence on the TPM
+   s" /ibm,vtpm" find-node dup IF
+      s" unassert-physical-presence" rot $call-static
+   ELSE
+      drop
+   THEN
+
    of-prompt? not auto-boot? and IF
       (boot)
    THEN
