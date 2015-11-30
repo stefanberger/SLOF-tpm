@@ -38,6 +38,7 @@ extern void *SLOF_translate_my_address(void *addr);
 extern int write_mm_log(char *data, unsigned int len, unsigned short type);
 extern void SLOF_encode_bootp_response(void *addr, size_t size);
 extern void SLOF_encode_dhcp_response(void *addr, size_t size);
+extern unsigned long SLOF_get_vtpm_unit(void);
 
 #define offset_of(type, member) ((long) &((type *)0)->member)
 #define container_of(ptr, type, member) ({                      \
