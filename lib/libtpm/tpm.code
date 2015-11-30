@@ -55,3 +55,35 @@ PRIM(tpm_X2d_set_X2d_log_X2d_parameters)
 	void *addr = TOS.a; POP;
 	tpm_set_log_parameters(addr, size);
 MIRP
+
+/**************************************************/
+/* Firmware API                                   */
+/* SLOF:   tpm-log-event ( eventptr -- success? ) */
+/* LIBTPM: success = tpm-log-event                */
+/**************************************************/
+PRIM(tpm_X2d_log_X2d_event)
+	void *eventptr = TOS.a;
+	TOS.n = tpm_log_event(eventptr);
+MIRP
+
+/********************************************************/
+/* Firmware API                                         */
+/* SLOF:   tpm-hash-log-extend-event ( eventptr -- rc ) */
+/* LIBTPM: errcode = tpm-hash-log-extend-event          */
+/********************************************************/
+PRIM(tpm_X2d_hash_X2d_log_X2d_extend_X2d_event)
+	void *eventptr = TOS.a;
+	TOS.n = tpm_hash_log_extend_event(eventptr);
+MIRP
+
+/*****************************************************************/
+/* Firmware API                                                  */
+/* SLOF:   tpm-hash-all ( data-ptr data-len hash-ptr -- errcode) */
+/* LIBTPM: errcode = tpm-hash-all                                */
+/*****************************************************************/
+PRIM(tpm_X2d_hash_X2d_all)
+	void *hashptr = TOS.a; POP;
+	int datalen = TOS.n; POP;
+	void *dataptr = TOS.a;
+	TOS.n = tpm_hash_all(dataptr, datalen, hashptr);
+MIRP

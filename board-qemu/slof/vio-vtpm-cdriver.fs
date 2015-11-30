@@ -14,6 +14,7 @@
 
 false VALUE vtpm-debug?
 0     VALUE vtpm-unit
+0     VALUE vtpm-ihandle
 
 : setup-alias
     " ibm,vtpm" find-alias 0= IF
@@ -54,6 +55,47 @@ false VALUE vtpm-debug?
 
     close-node
     r> to my-self
+;
+
+\ forward a call to /ibm,vtpm, which implements the function with the
+\ given name
+: vtpm-call-forward ( arg ... arg name namelen -- failure? ret ... ret )
+    \ assign /ibm,vtpm node to vtpm-ihandle, if not assigned
+    vtpm-ihandle 0= IF
+        s" /ibm,vtpm" open-dev to vtpm-ihandle
+    THEN
+
+    vtpm-ihandle 0<> IF
+        vtpm-ihandle                   ( arg ... arg name namelen ihandle )
+        $call-method                   ( -- ret ... ret )
+        false                          ( ret ... ret --- ret ... ret false )
+    ELSE
+        true                           ( -- true )
+    THEN
+;
+
+\ firmware API call
+: hash-all ( data-ptr data-len hash-ptr -- )
+    " hash-all" vtpm-call-forward IF
+        \ vtpm-call-forward failed; clean up stack
+        3drop
+    THEN
+;
+
+\ firmware API call
+: log-event ( event-ptr -- success? )
+    " log-event" vtpm-call-forward IF
+        drop
+        false
+    THEN
+;
+
+\ firmware API call
+: hash-log-extend-event ( event-ptr -- rc )
+    " hash-log-extend-event" vtpm-call-forward IF
+        drop
+        9 \ TPM_FAIL
+    THEN
 ;
 
 : open ( )
