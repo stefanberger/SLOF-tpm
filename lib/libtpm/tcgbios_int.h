@@ -48,6 +48,7 @@
 #define TPM_PP_NOT_PRESENT_LOCK          0x0014
 
 #define TPM_TAG_RQU_CMD                  0x00c1
+#define TPM_TAG_RSP_CMD                  0x00c4
 
 /* TPM command error codes */
 #define TPM_INVALID_POSTINIT             0x26
