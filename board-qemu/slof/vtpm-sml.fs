@@ -45,6 +45,38 @@ log-base LOG-SIZE tpm-set-log-parameters
     move
 ;
 
+: hash-all ( data-ptr data-len hash-ptr -- )
+    vtpm-debug? IF
+        ." Call to hash-all" cr
+    THEN
+    tpm-hash-all                                   ( errcode )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-hash-all: " . cr
+    ELSE
+        drop
+    THEN
+;
+
+: log-event ( event-ptr -- success? )
+    vtpm-debug? IF
+        ." Call to log-event" cr
+    THEN
+    tpm-log-event                                  ( success? )
+    dup 0= IF
+        ." VTPM: Returned bool from tpm-log-event: " dup . cr
+    THEN
+;
+
+: hash-log-extend-event ( event-ptr -- rc )
+    vtpm-debug? IF
+        ." Call to hash-log-extend-event" cr
+    THEN
+    tpm-hash-log-extend-event                      ( rc )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-hash-log-extend-event: " dup . cr
+    THEN
+;
+
 \
 \ internal API calls
 \
