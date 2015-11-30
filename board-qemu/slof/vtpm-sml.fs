@@ -62,6 +62,13 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: get-failure-reason ( -- reason )
+    tpm-driver-get-failure-reason                  ( reason )
+    vtpm-debug? IF
+        ." VTPM: Return value from tpm-driver-get-failure-reason: " dup . cr
+    THEN
+;
+
 : hash-all ( data-ptr data-len hash-ptr -- )
     vtpm-debug? IF
         ." Call to hash-all" cr
