@@ -200,3 +200,9 @@ void SLOF_encode_dhcp_response(void *addr, size_t size)
 {
 	SLOF_encode_response(addr, size, "dhcp-response");
 }
+
+unsigned long SLOF_get_vtpm_unit(void)
+{
+	forth_eval("vtpm-unit");
+	return forth_pop();
+}
