@@ -14,6 +14,7 @@
 #define TCGBIOS_INT_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "tpm_drivers.h"
 
@@ -111,7 +112,9 @@ struct tpm_req_getcap {
 #define TPM_CAP_FLAG      0x04
 #define TPM_CAP_PROPERTY  0x05
 #define TPM_CAP_FLAG_PERMANENT  0x108
+#define TPM_CAP_PROP_OWNER      0x111
 #define TPM_CAP_PROP_DURATION   0x120
+
 
 struct tpm_req_getcap_perm_flags {
 	struct tpm_req_header hdr;
@@ -139,6 +142,30 @@ struct tpm_rsp_getcap_perm_flags {
 	struct tpm_permanent_flags perm_flags;
 } __attribute__((packed));
 
+struct tpm_req_getcap_stclear_flags {
+	struct tpm_req_header hdr;
+	uint32_t cap_area;
+	uint32_t sub_cap_size;
+	uint32_t sub_cap;
+} __attribute__((packed));
+
+struct tpm_stclear_flags {
+	uint16_t tag;
+	uint8_t  flags[5];
+} __attribute__((packed));
+
+#define STCLEAR_FLAG_IDX_DEACTIVATED 0
+#define STCLEAR_FLAG_IDX_DISABLE_FORCE_CLEAR 1
+#define STCLEAR_FLAG_IDX_PHYSICAL_PRESENCE 2
+#define STCLEAR_FLAG_IDX_PHYSICAL_PRESENCE_LOCK 3
+#define STCLEAR_FLAG_IDX_GLOBAL_LOCK 4
+
+struct tpm_rsp_getcap_stclear_flags {
+	struct tpm_rsp_header hdr;
+	uint32_t size;
+	struct tpm_stclear_flags stclear_flags;
+} __attribute__((packed));
+
 struct tpm_rsp_getcap_ownerauth {
 	struct tpm_rsp_header hdr;
 	uint32_t size;
@@ -150,5 +177,14 @@ struct tpm_rsp_getcap_durations {
 	uint32_t size;
 	uint32_t durations[TPM_NUM_DURATIONS];
 } __attribute__((packed));
+
+#define TPM_PPI_OP_NOOP 0
+#define TPM_PPI_OP_ENABLE 1
+#define TPM_PPI_OP_DISABLE 2
+#define TPM_PPI_OP_ACTIVATE 3
+#define TPM_PPI_OP_DEACTIVATE 4
+#define TPM_PPI_OP_CLEAR 5
+#define TPM_PPI_OP_SET_OWNERINSTALL_TRUE 8
+#define TPM_PPI_OP_SET_OWNERINSTALL_FALSE 9
 
 #endif /* TCGBIOS_INT_H */

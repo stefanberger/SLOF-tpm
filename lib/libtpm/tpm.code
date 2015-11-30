@@ -14,6 +14,7 @@
  */
 
 #include <tcgbios.h>
+#include <stdbool.h>
 
 
 /************************************************/
@@ -119,4 +120,15 @@ PRIM(tpm_X2d_measure_X2d_bcv_X2d_mbr)
 	void *addr = TOS.a; POP;
 	int bootdrv = TOS.u;
 	TOS.n = tpm_measure_bcv_mbr(bootdrv, addr, length);
+MIRP
+
+/*************************************************************/
+/* Process an opcode to change state of the TPM              */
+/* SLOF:   tpm-process-opcode  ( opcode verbose -- errcode)  */
+/* LIBTPM: tpm_process_opcode(opcode, verbose)               */
+/*************************************************************/
+PRIM(tpm_X2d_process_X2d_opcode)
+	int opcode = TOS.u; POP;
+	bool verbose = TOS.u;
+	TOS.n = tpm_process_opcode(opcode, verbose);
 MIRP
