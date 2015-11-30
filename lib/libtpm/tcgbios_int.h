@@ -161,6 +161,12 @@ struct tpm_rsp_getcap_durations {
 	uint32_t durations[TPM_NUM_DURATIONS];
 } __attribute__((packed));
 
+struct tpm_rsp_getcap_buffersize {
+	struct tpm_rsp_header hdr;
+	uint32_t size;
+	uint32_t buffersize;
+} __attribute__((packed));
+
 #define TPM_PPI_OP_NOOP 0
 #define TPM_PPI_OP_ENABLE 1
 #define TPM_PPI_OP_DISABLE 2

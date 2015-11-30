@@ -84,6 +84,16 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: get-maximum-cmd-size ( -- max-size )
+    vtpm-debug? IF
+        ." Call to get-maximum-cmd-size" cr
+    THEN
+    tpm-get-maximum-cmd-size                       ( -- max-size )
+    dup 0= IF     \ Display if return value is 0
+        ." VTPM: Return value from tpm-get-maximum-cmd-size: " dup . cr
+    THEN
+;
+
 \
 \ internal API calls
 \

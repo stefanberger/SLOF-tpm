@@ -38,6 +38,8 @@
 #define dprintf(_x ...)
 #endif
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 static const uint8_t startup_st_clear[] = { 0x00, TPM_ST_CLEAR };
 //static const uint8_t startup_st_state[] = { 0x00, TPM_ST_STATE };
 
@@ -72,6 +74,11 @@ static const uint8_t get_capability_owner_auth[] = {
 static const uint8_t get_capability_durations[] = {
 	0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x04,
 	0x00, 0x00, 0x01, 0x20
+};
+
+static const uint8_t get_capability_buffer_size[] = {
+	0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x04,
+	0x00, 0x00, 0x01, 0x24
 };
 
 static uint8_t evt_separator[] = {0xff,0xff,0xff,0xff};
@@ -1150,4 +1157,41 @@ int tpm_get_state(void)
 	dprintf("TPM state flags = 0x%x\n", state);
 
 	return state;
+}
+
+/*
+ * tpm_get_maximum_cmd_size: Function for interfacing with the firmware API
+ *
+ * This function returns the maximum size a TPM command (or response) may have.
+ */
+uint32_t tpm_get_maximum_cmd_size(void)
+{
+	uint32_t rc;
+	uint32_t return_code;
+	struct tpm_rsp_getcap_buffersize buffersize;
+	uint32_t result;
+
+	if (!has_working_tpm())
+		return 0;
+
+	rc = build_and_send_cmd(TPM_ORD_GET_CAPABILITY,
+				get_capability_buffer_size,
+				sizeof(get_capability_buffer_size),
+				(uint8_t *)&buffersize, sizeof(buffersize),
+				&return_code, TPM_DURATION_TYPE_SHORT);
+
+	if (rc || return_code)
+		goto err_exit;
+
+	result = MIN(cpu_to_be32(buffersize.buffersize),
+	             spapr_vtpm_get_buffersize());
+
+	return result;
+
+err_exit:
+	dprintf("TPM malfunctioning (line %d).\n", __LINE__);
+
+	tpm_set_failure();
+
+	return 0;
 }
