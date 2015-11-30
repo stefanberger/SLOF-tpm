@@ -18,6 +18,8 @@
  *  http://www.trustedcomputinggroup.org/resources/pc_client_work_group_specific_implementation_specification_for_conventional_bios
  */
 
+#include <stddef.h>
+
 #include "types.h"
 #include "byteorder.h"
 #include "tpm_drivers.h"
@@ -25,6 +27,8 @@
 #include "tcgbios.h"
 #include "tcgbios_int.h"
 #include "stdio.h"
+#include "sha1.h"
+#include "helpers.h"
 
 #undef TCGBIOS_DEBUG
 //#define TCGBIOS_DEBUG
@@ -45,9 +49,25 @@ struct tpm_state {
 
 	/* size of the logging area */
 	uint32_t log_area_size;
+
+	/* where to write the next log entry to */
+	uint8_t *log_area_next_entry;
 };
 
 static struct tpm_state tpm_state;
+
+/*
+ * TPM 1.2 logs are written in big endian format.
+ */
+static inline uint32_t log32_to_cpu(uint32_t val)
+{
+	return be32_to_cpu(val);
+}
+
+static inline uint32_t cpu_to_log32(uint32_t val)
+{
+	return cpu_to_be32(val);
+}
 
 /********************************************************
   Extensions for TCG-enabled BIOS
@@ -161,6 +181,38 @@ static int tpm12_determine_timeouts(void)
 	return 0;
 }
 
+/*
+ * Extend a PCR of the TPM with the given hash
+ *
+ * @hash: sha1 hash (20 bytes) to extend PCR with
+ * @pcrindex: the PCR to extend [ 0..23 ]
+ */
+static int tpm_extend(uint8_t *hash, uint32_t pcrindex)
+{
+	struct tpm_req_extend tre = {
+		.hdr.tag = cpu_to_be16(TPM_TAG_RQU_CMD),
+		.hdr.totlen = cpu_to_be32(sizeof(tre)),
+		.hdr.ordinal = cpu_to_be32(TPM_ORD_EXTEND),
+		.pcrindex = cpu_to_be32(pcrindex),
+	};
+	struct tpm_rsp_extend rsp;
+	uint32_t resp_length = sizeof(rsp);
+	int ret;
+
+	memcpy(tre.digest, hash, sizeof(tre.digest));
+
+	ret = tpmhw_transmit(0, &tre.hdr, &rsp, &resp_length,
+			     TPM_DURATION_TYPE_SHORT);
+
+	if (ret || resp_length != sizeof(rsp) || rsp.hdr.errcode) {
+		dprintf("TPM_Extend response has unexpected size: %u\n",
+			resp_length);
+		return -1;
+	}
+
+	return 0;
+}
+
 /****************************************************************
  * Setup and Measurements
  ****************************************************************/
@@ -180,6 +232,58 @@ static void tpm_set_failure(void)
 		       0, 0, TPM_DURATION_TYPE_SHORT);
 
 	tpm_state.tpm_working = false;
+}
+
+/*
+ * Extend the OFDT log with the given entry by copying the
+ * entry data into the log.
+ *
+ * @pcpes: Pointer to the structure to be copied into the log
+ * @event: The event to be appended to 'pcpes'
+ * @event_length: The length of the event
+ *
+ * Returns 0 on success, an error code otherwise.
+ */
+static uint32_t tpm_log_event_long(struct pcpes *pcpes,
+				   const void *event, uint32_t event_length)
+{
+	uint32_t size;
+
+	dprintf("log base address = %p, next entry = %p\n",
+		tpm_state.log_base, tpm_state.log_area_next_entry);
+
+	if (tpm_state.log_area_next_entry == NULL)
+		return TCGBIOS_LOGOVERFLOW;
+
+	size = offset_of(struct pcpes, event) + event_length;
+
+	if ((tpm_state.log_area_next_entry + size - tpm_state.log_base) >
+	     tpm_state.log_area_size) {
+		dprintf("LOG OVERFLOW: size = %d\n", size);
+		return TCGBIOS_LOGOVERFLOW;
+	}
+
+	pcpes->eventdatasize = cpu_to_log32(event_length);
+
+	memcpy(tpm_state.log_area_next_entry, pcpes,
+	       offset_of(struct pcpes, event));
+	memcpy(tpm_state.log_area_next_entry + offset_of(struct pcpes, event),
+	       event, event_length);
+
+	tpm_state.log_area_next_entry += size;
+
+	return 0;
+}
+
+bool tpm_log_event(struct pcpes *pcpes)
+{
+	const char *event = NULL;
+	uint32_t event_length = log32_to_cpu(pcpes->eventdatasize);
+
+	if (event_length)
+		event = (void *)pcpes + offset_of(struct pcpes, event);
+
+	return (tpm_log_event_long(pcpes, event, event_length) == 0);
 }
 
 static int tpm12_assert_physical_presence(void)
@@ -285,5 +389,58 @@ void tpm_set_log_parameters(void *addr, unsigned int size)
 	dprintf("Log is at 0x%llx; size is %u bytes\n",
 		(uint64_t)addr, size);
 	tpm_state.log_base = addr;
+	tpm_state.log_area_next_entry = addr;
 	tpm_state.log_area_size = size;
+}
+
+/*
+ * tpm_hash_all: Function for interfacing with the firmware API
+ */
+uint32_t tpm_hash_all(const void *data, uint32_t datalen, void *hashptr)
+{
+	return sha1(data, datalen, hashptr);
+}
+
+static uint32_t hash_log_extend(struct pcpes *pcpes,
+				const void *hashdata,
+				uint32_t hashdata_length,
+				const char *event, uint32_t event_length,
+				bool extend)
+{
+	int ret;
+
+	if (log32_to_cpu(pcpes->pcrindex) >= 24)
+		return TCGBIOS_INVALID_INPUT_PARA;
+	if (hashdata)
+		tpm_hash_all(hashdata, hashdata_length, pcpes->digest);
+
+	if (extend) {
+		ret = tpm_extend(pcpes->digest, log32_to_cpu(pcpes->pcrindex));
+		if (ret)
+			return TCGBIOS_COMMAND_ERROR;
+	}
+	ret = tpm_log_event_long(pcpes, event, event_length);
+	if (ret)
+		return TCGBIOS_LOGOVERFLOW;
+	return 0;
+}
+
+/*
+ * tpm_hash_log_extend_event: Function for interfacing with the firmware API
+ */
+uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes)
+{
+	const char *event = NULL;
+	uint32_t event_length = log32_to_cpu(pcpes->eventdatasize);
+
+	if (!tpm_is_working())
+		return TCGBIOS_GENERAL_ERROR;
+
+	if (event_length)
+		event = (void *)pcpes + offset_of(struct pcpes, event);
+
+	return hash_log_extend(pcpes,
+			       &pcpes->event,
+			       log32_to_cpu(pcpes->eventdatasize),
+			       event, event_length, true);
 }
