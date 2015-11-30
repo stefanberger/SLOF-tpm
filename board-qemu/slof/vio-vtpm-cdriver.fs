@@ -122,6 +122,13 @@ false VALUE vtpm-debug?
     THEN
 ;
 
+\ firmware API call
+: get-maximum-cmd-size ( -- maximum-size )
+    " get-maximum-cmd-size" vtpm-call-forward IF
+        0
+    THEN
+;
+
 : open ( )
     vtpm-debug? IF ." VTPM: vTPM open()" cr THEN
     true
