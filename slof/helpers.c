@@ -134,3 +134,9 @@ void *SLOF_translate_my_address(void *addr)
 	forth_eval("translate-my-address");
 	return (void *)forth_pop();
 }
+
+unsigned long SLOF_get_vtpm_unit(void)
+{
+	forth_eval("vtpm-unit");
+	return forth_pop();
+}

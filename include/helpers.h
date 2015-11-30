@@ -33,6 +33,7 @@ extern long SLOF_pci_config_read16(long offset);
 extern void SLOF_pci_config_write32(long offset, long value);
 extern void SLOF_pci_config_write16(long offset, long value);
 extern void *SLOF_translate_my_address(void *addr);
+extern unsigned long SLOF_get_vtpm_unit(void);
 
 #define offset_of(type, member) ((long) &((type *)0)->member)
 #define container_of(ptr, type, member) ({                      \
