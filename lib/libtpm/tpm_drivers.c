@@ -20,6 +20,7 @@
 #include "tpm_drivers.h"
 #include "libhvcall.h"
 #include "paflof.h"
+#include "tcgbios_int.h"
 
 #undef PAPR_VTPM_DEBUG
 //#define PAPR_VTPM_DEBUG
@@ -475,4 +476,16 @@ bool spapr_is_vtpm_present(void)
 	}
 
 	return rc;
+}
+
+int tpmhw_transmit(uint8_t locty, struct tpm_req_header *req,
+                   void *respbuffer, uint32_t *respbufferlen,
+                   enum tpm_duration_type to_t)
+{
+        if (!spapr_vtpm_senddata((uint8_t *)req, be32_to_cpu(req->totlen)) ||
+            !spapr_vtpm_waitresponseready(to_t) ||
+            !spapr_vtpm_readresponse(respbuffer, respbufferlen) ||
+            *respbufferlen < sizeof(struct tpm_rsp_header))
+                return -1;
+        return 0;
 }
