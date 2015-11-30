@@ -69,6 +69,15 @@ void tpm_set_log_parameters(void *addr, unsigned int size)
 	tpm_state.log_area_size = size;
 }
 
+uint32_t tpm_get_logsize(void)
+{
+	uint32_t logsize = tpm_state.log_area_next_entry - tpm_state.log_base;
+
+	dprintf("log size: %u\n", logsize);
+
+	return logsize;
+}
+
 /*
  * Extend the OFDT log with the given entry by copying the
  * entry data into the log.
