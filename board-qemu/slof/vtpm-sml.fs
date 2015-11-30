@@ -35,6 +35,13 @@ log-base LOG-SIZE tpm-set-log-parameters
     LOG-SIZE
 ;
 
+: sml-get-handover-size ( -- size )
+    tpm-get-logsize
+    vtpm-debug? IF
+        ." Call to sml-get-handover-size; size = 0x" dup . cr
+    THEN
+;
+
 : sml-handover ( dest size -- )
     vtpm-debug? IF
         2dup
