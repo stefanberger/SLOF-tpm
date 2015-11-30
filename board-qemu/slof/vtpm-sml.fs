@@ -121,6 +121,14 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: reformat-sml-to-efi-alignment ( -- success? )
+    vtpm-debug? IF
+        ." Call to reformat-sml-to-efi-alignment" cr
+    THEN
+    \ a no-op since already byte aligned
+    true
+;
+
 \
 \ internal API calls
 \
