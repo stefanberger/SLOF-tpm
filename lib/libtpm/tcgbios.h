@@ -34,4 +34,13 @@ uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
 uint32_t tpm_add_event_separators(uint32_t start_pcr, uint32_t end_pcr);
 uint32_t tpm_process_opcode(uint8_t op, bool verbose);
 
+/* flags returned by tpm_get_state */
+#define TPM_STATE_ENABLED        1
+#define TPM_STATE_ACTIVE         2
+#define TPM_STATE_OWNED          4
+#define TPM_STATE_OWNERINSTALL   8
+
+int tpm_get_state(void);
+bool tpm_is_working(void);
+
 #endif /* TCGBIOS_H */
