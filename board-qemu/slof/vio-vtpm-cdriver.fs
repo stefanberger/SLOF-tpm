@@ -123,6 +123,14 @@ false VALUE vtpm-debug?
 ;
 
 \ firmware API call
+: pass-through-to-tpm ( buf-addr buf-size -- response-size )
+    " pass-through-to-tpm" vtpm-call-forward IF
+        2drop
+        0
+    THEN
+;
+
+\ firmware API call
 : get-maximum-cmd-size ( -- maximum-size )
     " get-maximum-cmd-size" vtpm-call-forward IF
         0

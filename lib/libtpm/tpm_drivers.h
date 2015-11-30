@@ -70,6 +70,9 @@ typedef enum {
 	VTPM_DRV_ERROR_SML_HANDED_OVER = 14,
 } vtpm_drv_error;
 
+/* the max. buffer size by the external TPM is 4k */
+#define PAPR_VTPM_MAX_BUFFER_SIZE       4096
+
 /* exported functions */
 bool spapr_is_vtpm_present(void);
 void spapr_vtpm_finalize(void);
