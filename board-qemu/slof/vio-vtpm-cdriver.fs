@@ -53,6 +53,17 @@ LOG-SIZE BUFFER: log-base
    true
 ;
 
+\ firmware API call
+: pass-through-to-tpm ( buf-addr buf-size -- response-size )
+    vtpm-debug? IF
+        ." Call to pass-through-to-tpm" cr
+    THEN
+    tpm-pass-through-to-tpm                        ( rsp-size )
+    vtpm-debug? IF
+        ." VTPM: Return value from tpm-pass-through-to-tpm: " dup . cr
+    THEN
+;
+
 : open true ;
 : close ;
 
