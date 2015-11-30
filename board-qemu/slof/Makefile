@@ -21,7 +21,7 @@ all: version.o Makefile.dep OF.ffs paflof $(SLOFCMNDIR)/xvect.bin
 CPPFLAGS = -I$(LIBCMNDIR)/libbootmsg -I$(LIBCMNDIR)/libhvcall \
 	   -I$(LIBCMNDIR)/libvirtio -I$(LIBCMNDIR)/libnvram \
 	   -I$(LIBCMNDIR)/libusb -I$(LIBCMNDIR)/libveth \
-	   -I$(LIBCMNDIR)/libe1k
+	   -I$(LIBCMNDIR)/libe1k -I$(LIBCMNDIR)/libtpm
 SLOF_LIBS = \
 	$(LIBCMNDIR)/libbootmsg.a \
 	$(LIBCMNDIR)/libelf.a \
@@ -30,7 +30,8 @@ SLOF_LIBS = \
 	$(LIBCMNDIR)/libusb.a \
 	$(LIBCMNDIR)/libnvram.a \
 	$(LIBCMNDIR)/libveth.a \
-	$(LIBCMNDIR)/libe1k.a
+	$(LIBCMNDIR)/libe1k.a \
+	$(LIBCMNDIR)/libtpm.a
 BOARD_SLOF_IN = \
 	$(LIBCMNDIR)/libhvcall/hvcall.in \
 	$(LIBCMNDIR)/libvirtio/virtio.in \
@@ -40,7 +41,8 @@ BOARD_SLOF_IN = \
 	$(LIBCMNDIR)/libnvram/libnvram.in \
 	$(LIBCMNDIR)/libbases/libbases.in \
 	$(LIBCMNDIR)/libveth/veth.in \
-	$(LIBCMNDIR)/libe1k/e1k.in
+	$(LIBCMNDIR)/libe1k/e1k.in \
+	$(LIBCMNDIR)/libtpm/tpm.in
 BOARD_SLOF_CODE = $(BOARD_SLOF_IN:%.in=%.code)
 
 include $(SLOFCMNDIR)/Makefile.inc
@@ -71,6 +73,7 @@ VIO_FFS_FILES = \
 	$(SLOFBRDDIR)/pci-device_1af4_1009.fs \
 	$(SLOFBRDDIR)/vio-hvterm.fs \
 	$(SLOFBRDDIR)/vio-vscsi.fs \
+	$(SLOFBRDDIR)/vio-vtpm-cdriver.fs \
 	$(SLOFBRDDIR)/vio-veth.fs \
 	$(SLOFBRDDIR)/rtas-nvram.fs \
 	$(SLOFBRDDIR)/virtio-net.fs \
@@ -99,6 +102,7 @@ OF_FFS_FILES = \
 	$(SLOFBRDDIR)/default-font.bin \
 	$(SLOFBRDDIR)/pci-phb.fs \
 	$(SLOFBRDDIR)/rtas.fs \
+	$(SLOFBRDDIR)/vtpm-sml.fs \
 	$(SLOFBRDDIR)/pci-device_1234_1111.fs \
 	$(SLOFBRDDIR)/pci-device_1013_00b8.fs \
 	$(SLOFBRDDIR)/pci-device_8086_100e.fs \
