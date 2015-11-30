@@ -120,6 +120,191 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+\
+\  TPM menu
+\
+
+1 CONSTANT TPM_ST_ENABLED
+2 CONSTANT TPM_ST_ACTIVE
+4 CONSTANT TPM_ST_OWNED
+8 CONSTANT TPM_ST_OWNERINSTALL
+
+\ helper to test whether the TPM is enabled and active
+: is-enabled-active? ( state -- ok? )
+    TPM_ST_ENABLED TPM_ST_ACTIVE OR dup rot AND =
+;
+
+\ display the menu for manipulating TPM state; we get
+\ the state of the TPM in form of flags from the C-driver
+\
+\ Some info about the TPM's states:
+\ - enabling/disabling can be done at any time
+\ - activating/deactivating the TPM requires an enabled TPM
+\ - clearing ownership can be done even if the TPM is deactivated and disabled
+\ - allowing/preventing owner installation requires an enabled and active TPM
+\
+: menu-show ( -- )
+    tpm-is-working IF
+        ." The TPM is "
+
+        tpm-get-state                   ( flags )
+
+        dup TPM_ST_ENABLED AND TPM_ST_ENABLED <> IF
+            ." disabled"
+        ELSE
+            ." enabled"
+        THEN
+
+        dup TPM_ST_ACTIVE AND TPM_ST_ACTIVE <> IF
+            ." , deactivated"
+        ELSE
+            ." , active"
+        THEN
+
+        dup TPM_ST_OWNED AND TPM_ST_OWNED <> IF
+            ." , does not have an owner "
+            dup TPM_ST_OWNERINSTALL AND TPM_ST_OWNERINSTALL <> IF
+                ." and an owner cannot be installed."
+            ELSE
+                ." but one can be installed."
+            THEN
+        ELSE
+            ." , and has an owner."
+        THEN
+
+        cr cr
+        ." To configure the TPM, choose one of the following actions:"
+        cr cr
+
+        dup TPM_ST_ENABLED AND TPM_ST_ENABLED <> IF
+            ." e. Enable the TPM" cr
+        ELSE
+            ." d. Disable the TPM" cr
+
+            dup TPM_ST_ACTIVE AND TPM_ST_ACTIVE <> IF
+                ." a. Activate the TPM" cr
+            ELSE
+                ." v. Deactivate the TPM" cr
+
+                dup TPM_ST_OWNERINSTALL AND TPM_ST_OWNERINSTALL <> IF
+                    ." s. Allow installation of an owner" cr
+                ELSE
+                    ." p. Prevent installation of an owner" cr
+                THEN
+            THEN
+
+        THEN
+
+        dup TPM_ST_OWNED AND TPM_ST_OWNED = IF
+           ." c. Clear ownership" cr
+        THEN
+
+        cr
+        \ If the TPM is either disabled or deactivated, show message
+        is-enabled-active? 0= IF
+            ." Note: To be able to use all features of the TPM, it must be enabled and active."
+            cr cr
+        THEN
+
+    ELSE
+       ." The TPM is not working correctly." cr
+    THEN
+
+    ." Press escape to continue boot." cr cr
+;
+
+\ Send a code to the C-driver to change the state of the vTPM
+: process-opcode ( verbose? opcode -- )
+    tpm-process-opcode
+    dup 0<> IF
+        ." VTPM: Error code from tpm-process-opcode: " . cr
+    ELSE
+        drop
+    THEN
+;
+
+1  CONSTANT PPI_OP_ENABLE
+2  CONSTANT PPI_OP_DISABLE
+3  CONSTANT PPI_OP_ACTIVATE
+4  CONSTANT PPI_OP_DEACTIVATE
+5  CONSTANT PPI_OP_CLEAR
+8  CONSTANT PPI_OP_SETOWNERINSTALL_TRUE
+9  CONSTANT PPI_OP_SETOWNERINSTALL_FALSE
+
+\ if there's a vtpm available, display the menu
+\ wait for keyboard input and have the C-driver
+\ process opcodes we derive from the chosen menu
+\ item
+: vtpm-menu
+    tpm-is-working IF
+        \ vtpm-empty-keybuffer
+        menu-show
+        BEGIN
+            0 \ loop end-flag                                           ( 0 )
+            key CASE
+            [char] e OF  tpm-get-state                                  ( 0 flags )
+                         TPM_ST_ENABLED AND TPM_ST_ENABLED <> IF
+                             0 PPI_OP_ENABLE     process-opcode
+                             menu-show
+                         THEN
+                     ENDOF
+            [char] d OF  tpm-get-state                                  ( 0 flags )
+                         TPM_ST_ENABLED AND TPM_ST_ENABLED = IF
+                             0 PPI_OP_DISABLE    process-opcode
+                             menu-show
+                         THEN
+                     ENDOF
+            [char] a OF  tpm-get-state                                  ( 0 flags )
+                         TPM_ST_ACTIVE AND TPM_ST_ACTIVE <> IF
+                             0 PPI_OP_ACTIVATE   process-opcode
+                             tpm-get-state
+                             TPM_ST_ACTIVE AND TPM_ST_ACTIVE = IF
+                                 ." The system needs to reboot to activate the TPM."
+                                 100 MS \ so the message shows
+                                 reset-all
+                             THEN
+                         THEN
+                     ENDOF
+            [char] v OF  tpm-get-state                                  ( 0 flags )
+                         TPM_ST_ACTIVE AND TPM_ST_ACTIVE = IF
+                             0 PPI_OP_DEACTIVATE process-opcode
+                             menu-show
+                         THEN
+                     ENDOF
+            [char] c OF  tpm-get-state                                  ( 0 flags )
+                         TPM_ST_OWNED AND TPM_ST_OWNED = IF
+                             0 PPI_OP_CLEAR      process-opcode
+                             menu-show
+                         THEN
+                     ENDOF
+            [char] s OF  tpm-get-state                                  ( 0 flags )
+                         \ The TPM must be enabled and active to allow
+                         \ owner installation mods
+                         dup is-enabled-active? IF
+                             TPM_ST_OWNERINSTALL AND TPM_ST_OWNERINSTALL <> IF
+                                 0 PPI_OP_SETOWNERINSTALL_TRUE  process-opcode
+                                 menu-show
+                             THEN
+                         THEN
+                     ENDOF
+            [char] p OF  tpm-get-state                                  ( 0 flags )
+                         \ The TPM must be enabled and active to allow
+                         \ owner installation mods
+                         dup is-enabled-active? IF
+                             TPM_ST_OWNERINSTALL AND TPM_ST_OWNERINSTALL = IF
+                                 0 PPI_OP_SETOWNERINSTALL_FALSE process-opcode
+                                 menu-show
+                             THEN
+                         THEN
+                     ENDOF
+            1b       OF                                                ( 0 )
+                         drop 1                                        ( 1 )
+                     ENDOF
+            ENDCASE
+        UNTIL
+    THEN
+;
+
 : open  true ;
 : close ;
 
