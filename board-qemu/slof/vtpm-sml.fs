@@ -94,6 +94,16 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: pass-through-to-tpm ( buf-addr cmd-size -- rsp-size )
+    vtpm-debug? IF
+        ." Call to pass-through-to-tpm" cr
+    THEN
+    tpm-pass-through-to-tpm                        ( -- rsp-size )
+    vtpm-debug? IF
+        ." VTPM: Return value from tpm-pass-through-to-tpm: " dup . cr
+    THEN
+;
+
 \
 \ internal API calls
 \
