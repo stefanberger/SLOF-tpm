@@ -162,3 +162,13 @@ PRIM(tpm_X2d_measure_X2d_scrtm)
 	PUSH;
 	TOS.n = tpm_measure_scrtm();
 MIRP
+
+/****************************************************/
+/* Firmware API                                     */
+/* SLOF:   tpm-get-maximum-cmd-size ( -- max-size)  */
+/* LIBTPM: maxsize = tpm_get_maximum_cmd_size()     */
+/****************************************************/
+PRIM(tpm_X2d_get_X2d_maximum_X2d_cmd_X2d_size)
+	PUSH;
+	TOS.n = tpm_get_maximum_cmd_size();
+MIRP
