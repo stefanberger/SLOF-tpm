@@ -77,6 +77,16 @@ PRIM(tpm_X2d_hash_X2d_log_X2d_extend_X2d_event)
 	TOS.n = tpm_hash_log_extend_event(eventptr);
 MIRP
 
+/****************************************************/
+/* Firmware API                                     */
+/* SLOF:   tpm-driver-get-state ( -- state)         */
+/* LIBTPM: state = tpm_driver_get_state(void)       */
+/****************************************************/
+PRIM(tpm_X2d_driver_X2d_get_X2d_state)
+	PUSH;
+	TOS.n = tpm_driver_get_state();
+MIRP
+
 /*****************************************************************/
 /* Firmware API                                                  */
 /* SLOF:   tpm-hash-all ( data-ptr data-len hash-ptr -- errcode) */
