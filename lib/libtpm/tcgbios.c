@@ -39,6 +39,12 @@ struct tpm_state {
 	unsigned tpm_found:1;
 	unsigned tpm_working:1;
 	unsigned has_physical_presence:1;
+
+	/* base address of the log area */
+	uint8_t *log_base;
+
+	/* size of the logging area */
+	uint32_t log_area_size;
 };
 
 static struct tpm_state tpm_state;
@@ -268,4 +274,16 @@ uint32_t tpm_unassert_physical_presence(void)
 			       TPM_DURATION_TYPE_SHORT);
 
 	return 0;
+}
+
+/****************************************************************
+ * Forth interface
+ ****************************************************************/
+
+void tpm_set_log_parameters(void *addr, unsigned int size)
+{
+	dprintf("Log is at 0x%llx; size is %u bytes\n",
+		(uint64_t)addr, size);
+	tpm_state.log_base = addr;
+	tpm_state.log_area_size = size;
 }
