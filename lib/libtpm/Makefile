@@ -23,7 +23,7 @@ TARGET = ../libtpm.a
 
 all: $(TARGET)
 
-SRCS = tpm_drivers.c
+SRCS = tpm_drivers.c tcgbios.c
 
 OBJS = $(SRCS:%.c=%.o)
 
