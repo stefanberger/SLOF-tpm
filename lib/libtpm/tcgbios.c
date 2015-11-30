@@ -149,6 +149,18 @@ bool tpm_is_working(void)
 	return tpm_state.tpm_working;
 }
 
+/*
+ * tpm_driver_get_state: Function for interfacing with the firmware API
+ */
+uint32_t tpm_driver_get_state(void)
+{
+	/* do not check for a working TPM here */
+	if (!tpm_state.tpm_found)
+		return VTPM_DRV_STATE_INVALID;
+
+	return spapr_vtpm_get_state();
+}
+
 static int tpmhw_transmit(uint8_t locty, struct tpm_req_header *req,
                           void *respbuffer, uint32_t *respbufferlen,
                           enum tpm_duration_type to_t)
