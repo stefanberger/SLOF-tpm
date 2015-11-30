@@ -903,3 +903,15 @@ uint32_t tpm_pass_through_to_tpm(unsigned char *buf, uint32_t cmdlen)
 
 	return resplen;
 }
+
+/*
+ * tpm_driver_get_state: Function for interfacing with the firmware API
+ */
+uint32_t tpm_driver_get_state(void)
+{
+	/* do not check for a working TPM here */
+	if (!tpm_state.tpm_found)
+		return VTPM_DRV_STATE_INVALID;
+
+	return spapr_vtpm_get_state();
+}

@@ -52,6 +52,16 @@ log-base LOG-SIZE tpm-set-log-parameters
     move
 ;
 
+: get-state ( -- state )
+    vtpm-debug? IF
+        ." Call to get-state" cr
+    THEN
+    tpm-driver-get-state                           ( state )
+    vtpm-debug? IF
+        ." VTPM: Return value from tpm-driver-get-state: " dup . cr
+    THEN
+;
+
 : hash-all ( data-ptr data-len hash-ptr -- )
     vtpm-debug? IF
         ." Call to hash-all" cr
