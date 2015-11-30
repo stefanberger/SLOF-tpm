@@ -59,6 +59,8 @@
 #define EV_SEPARATOR                     4
 #define EV_ACTION                        5
 #define EV_EVENT_TAG                     6
+#define EV_S_CRTM_CONTENTS               7
+#define EV_S_CRTM_VERSION                8
 #define EV_IPL                          13
 #define EV_IPL_PARTITION_DATA           14
 
