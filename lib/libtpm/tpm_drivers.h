@@ -86,5 +86,6 @@ void spapr_vtpm_set_durations(const uint32_t durations[TPM_NUM_DURATIONS]);
 uint32_t spapr_vtpm_get_buffersize(void);
 vtpm_drv_state spapr_vtpm_get_state(void);
 vtpm_drv_error spapr_vtpm_get_error(void);
+void spapr_vtpm_set_error(vtpm_drv_error errcode);
 
 #endif /* TPM_DRIVERS_H */

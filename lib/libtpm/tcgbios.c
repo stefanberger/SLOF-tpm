@@ -221,6 +221,18 @@ uint32_t tpm_driver_get_failure_reason(void)
 	return spapr_vtpm_get_error();
 }
 
+/*
+ * tpm_driver_set_failure_reason: Function for interfacing with the firmware
+ *                                API
+ */
+void tpm_driver_set_failure_reason(uint32_t errcode)
+{
+	if (!tpm_state.tpm_found)
+		return;
+
+	spapr_vtpm_set_error(errcode);
+}
+
 static uint32_t transmit(struct tpm_req_header *req,
 			 uint8_t *respbuffer, uint32_t *respbufferlen,
 			 enum tpm_duration_type to_t)
