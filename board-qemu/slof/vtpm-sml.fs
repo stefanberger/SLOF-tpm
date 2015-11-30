@@ -20,6 +20,8 @@ false VALUE    vtpm-debug?
 0     VALUE    log-base
 40000 CONSTANT LOG-SIZE   \ 256k per VTPM FW spec.
 
+e     CONSTANT VTPM_DRV_ERROR_SML_HANDED_OVER
+
 LOG-SIZE BUFFER: log-base
 
 \ create /ibm,vtpm
@@ -50,6 +52,8 @@ log-base LOG-SIZE tpm-set-log-parameters
     log-base        ( dest size src )
     -rot            ( src dest size )
     move
+
+    VTPM_DRV_ERROR_SML_HANDED_OVER tpm-driver-set-failure-reason
 ;
 
 : get-state ( -- state )
