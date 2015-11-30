@@ -25,6 +25,9 @@ LOG-SIZE BUFFER: log-base
 \ create /ibm,vtpm
 s" ibm,vtpm" 2dup device-name device-type
 
+\ convey logbase and size to the C driver
+log-base LOG-SIZE tpm-set-log-parameters
+
 : sml-get-allocated-size ( -- buffer-size)
     vtpm-debug? IF
         ." Call to sml-get-allocated-size; size = 0x" LOG-SIZE . cr
