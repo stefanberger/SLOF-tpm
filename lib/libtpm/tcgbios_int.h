@@ -116,7 +116,7 @@ struct tpm_req_getcap {
 #define TPM_CAP_FLAG_PERMANENT  0x108
 #define TPM_CAP_PROP_OWNER      0x111
 #define TPM_CAP_PROP_DURATION   0x120
-
+#define TPM_CAP_PROP_INPUT_BUFFER 0x124
 
 struct tpm_req_getcap_perm_flags {
 	struct tpm_req_header hdr;
@@ -178,6 +178,12 @@ struct tpm_rsp_getcap_durations {
 	struct tpm_rsp_header hdr;
 	uint32_t size;
 	uint32_t durations[TPM_NUM_DURATIONS];
+} __attribute__((packed));
+
+struct tpm_rsp_getcap_buffersize {
+	struct tpm_rsp_header hdr;
+	uint32_t size;
+	uint32_t buffersize;
 } __attribute__((packed));
 
 #define TPM_PPI_OP_NOOP 0
