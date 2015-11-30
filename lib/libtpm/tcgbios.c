@@ -56,6 +56,8 @@ struct tpm_state {
 
 static struct tpm_state tpm_state;
 
+typedef uint8_t tpm_ppi_op;
+
 /********************************************************
   Extensions for TCG-enabled BIOS
  *******************************************************/
@@ -545,4 +547,205 @@ uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
 	return tpm_add_measurement_to_log(5, EV_IPL_PARTITION_DATA,
 					  string, strlen(string),
 					  addr + 0x1b8, 0x48);
+}
+
+/****************************************************************
+ * TPM Configuration Menu
+ ****************************************************************/
+
+static int read_has_owner(bool *has_owner)
+{
+	struct tpm_rsp_getcap_ownerauth oauth;
+	int ret = get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_OWNER,
+				 &oauth.hdr, sizeof(oauth));
+	if (ret)
+		return -1;
+
+	*has_owner = oauth.flag;
+
+	return 0;
+}
+
+static int enable_tpm(bool enable, bool verbose)
+{
+	struct tpm_permanent_flags pf;
+	int ret = read_permanent_flags((char *)&pf, sizeof(pf));
+	if (ret)
+		return -1;
+
+	if (pf.flags[PERM_FLAG_IDX_DISABLE] && !enable)
+		return 0;
+
+	ret = tpm_simple_cmd(0, enable ? TPM_ORD_PHYSICAL_ENABLE
+				       : TPM_ORD_PHYSICAL_DISABLE,
+			     0, 0, TPM_DURATION_TYPE_SHORT);
+	if (ret) {
+		if (enable) {
+			dprintf("TCGBIOS: Enabling the TPM failed.\n");
+		} else {
+			dprintf("TCGBIOS: Disabling the TPM failed.\n");
+		}
+	}
+	return ret;
+}
+
+static int activate_tpm(bool activate, bool allow_reset, bool verbose)
+{
+	struct tpm_permanent_flags pf;
+	int ret = read_permanent_flags((char *)&pf, sizeof(pf));
+	if (ret)
+		return -1;
+
+	if (pf.flags[PERM_FLAG_IDX_DEACTIVATED] && !activate)
+		return 0;
+
+	if (pf.flags[PERM_FLAG_IDX_DISABLE])
+		return 0;
+
+	ret = tpm_simple_cmd(0, TPM_ORD_PHYSICAL_SET_DEACTIVATED,
+			     1, activate ? 0 : 1,
+			     TPM_DURATION_TYPE_SHORT);
+	if (ret)
+		return ret;
+
+	if (activate && allow_reset) {
+		if (verbose)
+			printf("Requiring a reboot to activate the TPM.\n");
+	}
+
+	return 0;
+}
+
+static int enable_activate(int allow_reset, bool verbose)
+{
+	int ret = enable_tpm(true, verbose);
+	if (ret)
+		return ret;
+
+	return activate_tpm(true, allow_reset, verbose);
+}
+
+static int force_clear(bool enable_activate_before,
+		       bool enable_activate_after,
+		       bool verbose)
+{
+	bool has_owner;
+	int ret = read_has_owner(&has_owner);
+	if (ret)
+		return -1;
+	if (!has_owner) {
+		if (verbose)
+			printf("TPM does not have an owner.\n");
+		return 0;
+	}
+
+	if (enable_activate_before) {
+		ret = enable_activate(false, verbose);
+		if (ret) {
+			dprintf("TCGBIOS: Enabling/activating the TPM failed.\n");
+			return ret;
+		}
+	}
+
+	ret = tpm_simple_cmd(0, TPM_ORD_FORCE_CLEAR,
+			     0, 0, TPM_DURATION_TYPE_SHORT);
+	if (ret)
+		return ret;
+
+	if (!enable_activate_after) {
+		if (verbose)
+			printf("Owner successfully cleared.\n"
+			       "You will need to enable/activate the TPM again.\n\n");
+		return 0;
+	}
+
+	return enable_activate(true, verbose);
+}
+
+static int set_owner_install(bool allow, bool verbose)
+{
+	bool has_owner;
+	struct tpm_permanent_flags pf;
+	int ret = read_has_owner(&has_owner);
+	if (ret)
+		return -1;
+
+	if (has_owner) {
+		if (verbose)
+			printf("Must first remove owner.\n");
+		return 0;
+	}
+
+	ret = read_permanent_flags((char *)&pf, sizeof(pf));
+	if (ret)
+		return -1;
+
+	if (pf.flags[PERM_FLAG_IDX_DISABLE]) {
+		if (verbose)
+			printf("TPM must first be enable.\n");
+		return 0;
+	}
+
+	ret = tpm_simple_cmd(0, TPM_ORD_SET_OWNER_INSTALL,
+			     1, allow ? 1 : 0, TPM_DURATION_TYPE_SHORT);
+	if (ret)
+		return ret;
+
+	if (verbose)
+		printf("Installation of owner %s.\n",
+		      allow ? "enabled" : "disabled");
+
+	return 0;
+}
+
+static int tpm_process_cfg(tpm_ppi_op ppi_op, bool verbose)
+{
+	int ret = 0;
+
+	switch (ppi_op) {
+	case TPM_PPI_OP_NOOP: /* no-op */
+		break;
+
+	case TPM_PPI_OP_ENABLE:
+		ret = enable_tpm(true, verbose);
+		break;
+
+	case TPM_PPI_OP_DISABLE:
+		ret = enable_tpm(false, verbose);
+		break;
+
+	case TPM_PPI_OP_ACTIVATE:
+		ret = activate_tpm(true, true, verbose);
+		break;
+
+	case TPM_PPI_OP_DEACTIVATE:
+		ret = activate_tpm(false, true, verbose);
+		break;
+
+	case TPM_PPI_OP_CLEAR:
+		ret = force_clear(true, false, verbose);
+		break;
+
+	case TPM_PPI_OP_SET_OWNERINSTALL_TRUE:
+		ret = set_owner_install(true, verbose);
+		break;
+
+	case TPM_PPI_OP_SET_OWNERINSTALL_FALSE:
+		ret = set_owner_install(false, verbose);
+		break;
+
+	default:
+		break;
+	}
+
+	if (ret)
+		printf("Op %d: An error occurred: 0x%x TPM\n",
+		       ppi_op, ret);
+
+	return ret;
+}
+
+uint32_t tpm_process_opcode(uint8_t op, bool verbose)
+{
+	return tpm_process_cfg(op, verbose);
 }
