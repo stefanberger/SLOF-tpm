@@ -435,6 +435,35 @@ static uint32_t hash_log_extend(struct pcpes *pcpes,
 }
 
 /*
+ * Add a measurement to the log;
+ *
+ * Input parameters:
+ *  @pcrindex : PCR to extend
+ *  @event_type : type of event
+ *  @info : pointer to info (i.e., string) to be added to the log as-is
+ *  @info_length: length of the info
+ *  @hashdata : pointer to data to be hashed
+ *  @hashdata_length: length of the data
+ *
+ */
+static uint32_t tpm_add_measurement_to_log(uint32_t pcrindex,
+					   uint32_t eventtype,
+					   const char *info,
+					   uint32_t infolen,
+					   const uint8_t *hashdata,
+					   uint32_t hashdatalen)
+{
+	struct pcpes pcpes;
+
+	pcpes.pcrindex	= cpu_to_log32(pcrindex);
+	pcpes.eventtype = cpu_to_log32(eventtype);
+	memset(&pcpes.digest, 0, sizeof(pcpes.digest));
+
+	return hash_log_extend(&pcpes, hashdata, hashdatalen,
+			       info, infolen, true);
+}
+
+/*
  * tpm_hash_log_extend_event: Function for interfacing with the firmware API
  */
 uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes)
@@ -452,4 +481,82 @@ uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes)
 			       &pcpes->event,
 			       log32_to_cpu(pcpes->eventdatasize),
 			       event, event_length, true);
+}
+
+/*
+ * Add an EV_ACTION measurement to the list of measurements
+ */
+static uint32_t tpm_add_action(uint32_t pcrIndex, const char *string)
+{
+	uint32_t len = strlen(string);
+
+	return tpm_add_measurement_to_log(pcrIndex, EV_ACTION,
+					  string, len, (uint8_t *)string, len);
+}
+
+/*
+ * Add event separators for a range of PCRs
+ */
+uint32_t tpm_add_event_separators(uint32_t start_pcr, uint32_t end_pcr)
+{
+	static const uint8_t evt_separator[] = {0xff,0xff,0xff,0xff};
+	uint32_t rc = 0;
+	uint32_t pcrIndex;
+
+	if (!tpm_is_working())
+		return TCGBIOS_GENERAL_ERROR;
+
+	if (start_pcr >= 24 || start_pcr > end_pcr)
+		return TCGBIOS_INVALID_INPUT_PARA;
+
+	/* event separators need to be extended and logged for PCRs 0-7 */
+	for (pcrIndex = start_pcr; pcrIndex <= end_pcr; pcrIndex++) {
+		rc = tpm_add_measurement_to_log(pcrIndex, EV_SEPARATOR,
+						NULL, 0,
+						evt_separator,
+						sizeof(evt_separator));
+		if (rc)
+			break;
+	}
+
+	return rc;
+}
+
+uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
+			     uint32_t length)
+{
+	uint32_t rc;
+	const char *string;
+
+	if (!tpm_is_working())
+		return TCGBIOS_GENERAL_ERROR;
+
+	if (length < 0x200)
+		return TCGBIOS_INVALID_INPUT_PARA;
+
+	string = "Booting BCV device 00h (Floppy)";
+	if (bootdrv == BCV_DEVICE_HDD)
+		string = "Booting BCV device 80h (HDD)";
+
+	rc = tpm_add_action(4, string);
+	if (rc)
+		return rc;
+
+	/*
+	 * equivalent to: dd if=/dev/hda ibs=1 count=440 | sha1sum
+	 */
+	string = "MBR";
+	rc = tpm_add_measurement_to_log(4, EV_IPL,
+					string, strlen(string),
+					addr, 0x1b8);
+	if (rc)
+		return rc;
+
+	/*
+	 * equivalent to: dd if=/dev/hda ibs=1 count=72 skip=440 | sha1sum
+	 */
+	string = "MBR PARTITION TABLE";
+	return tpm_add_measurement_to_log(5, EV_IPL_PARTITION_DATA,
+					  string, strlen(string),
+					  addr + 0x1b8, 0x48);
 }
