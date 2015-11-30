@@ -132,3 +132,23 @@ PRIM(tpm_X2d_process_X2d_opcode)
 	bool verbose = TOS.u;
 	TOS.n = tpm_process_opcode(opcode, verbose);
 MIRP
+
+/************************************************/
+/* Get state of the TPM in form of flags        */
+/* SLOF:   tpm-get-state  ( -- flags )          */
+/* LIBTPM: state = tpm_get_state()              */
+/************************************************/
+PRIM(tpm_X2d_get_X2d_state)
+	PUSH;
+	TOS.n = tpm_get_state();
+MIRP
+
+/************************************************/
+/* Check whether the TPM is working             */
+/* SLOF:   tpm-is-working  ( -- true | false )  */
+/* LIBTPM: bool = tpm_is_working()              */
+/************************************************/
+PRIM(tpm_X2d_is_X2d_working)
+	PUSH;
+	TOS.n = tpm_is_working();
+MIRP
