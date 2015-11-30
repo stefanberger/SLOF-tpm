@@ -777,3 +777,39 @@ int tpm_get_state(void)
 
 	return state;
 }
+
+uint32_t tpm_measure_scrtm(void)
+{
+	uint32_t rc;
+
+	extern long print_version, print_version_end;
+	extern long _slof_data, _slof_data_end;
+
+	char *version_start = (char *)&print_version;
+	uint32_t version_length = (long)&print_version_end - (long)&print_version;
+
+	char *slof_start = (char *)&_slof_data;
+	uint32_t slof_length = (long)&_slof_data_end - (long)&_slof_data;
+
+	const char *scrtm = "S-CRTM Contents";
+
+	dprintf("Measure S-CRTM Version: addr = %p, length = %d\n",
+		version_start, version_length);
+
+	rc = tpm_add_measurement_to_log(0, EV_S_CRTM_VERSION,
+					version_start, version_length,
+					(uint8_t *)version_start,
+					version_length);
+
+	if (rc)
+		return rc;
+
+	dprintf("Measure S-CRTM Content: start = %p, length = %d\n",
+		&slof_start, slof_length);
+
+	rc = tpm_add_measurement_to_log(0, EV_S_CRTM_CONTENTS,
+					scrtm, strlen(scrtm),
+					(uint8_t *)slof_start, slof_length);
+
+	return rc;
+}
