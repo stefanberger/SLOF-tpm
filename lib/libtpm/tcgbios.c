@@ -349,6 +349,58 @@ uint32_t tpm_unassert_physical_presence(void)
 	return 0;
 }
 
+static bool pass_through_to_tpm(unsigned char *req,
+				uint32_t reqlen,
+				enum tpm_duration_type to_t,
+				unsigned char *rsp,
+				uint32_t *rsplen)
+{
+	struct tpm_req_header *trqh;
+	int ret;
+
+	if (!tpm_is_working())
+	       return TCGBIOS_FATAL_COM_ERROR;
+
+	trqh = (struct tpm_req_header *)req;
+	if (reqlen < sizeof(*trqh))
+		return TCGBIOS_INVALID_INPUT_PARA;
+
+	ret = tpmhw_transmit(0, trqh, rsp, rsplen, to_t);
+	if (ret)
+		return TCGBIOS_FATAL_COM_ERROR;
+
+	return 0;
+}
+
+/*
+ * tpm_pass_through_to_tpm: Function for interfacing with the firmware API
+ *
+ * buf: buffer holding the command; also used for holding the entire response
+ * cmdlen: length of the command in the buffer
+ *
+ * Returns 0 in case of failure, the size of the response otherwise.
+ */
+uint32_t tpm_pass_through_to_tpm(unsigned char *buf, uint32_t cmdlen)
+{
+	uint32_t resplen = PAPR_VTPM_MAX_BUFFER_SIZE;
+
+	/*
+	 * API spec: caller must ensure that the buffer is large
+	 *           enough to receive the full response into
+	 *           the same buffer where the command is in.
+	 *           We anticipate the largest possible buffer
+	 *           the driver supports in 'resplen'.
+	 * For duration we use the worst-case timeout 'LONG'
+	 * so that any command can be sent and will not time out.
+	 */
+	if (pass_through_to_tpm(buf, cmdlen,
+				TPM_DURATION_TYPE_LONG,
+				buf, &resplen))
+		return 0;
+
+	return resplen;
+}
+
 /*
  * Extend a PCR of the TPM with the given hash
  *
