@@ -393,6 +393,15 @@ void tpm_set_log_parameters(void *addr, unsigned int size)
 	tpm_state.log_area_size = size;
 }
 
+uint32_t tpm_get_logsize(void)
+{
+	uint32_t logsize = tpm_state.log_area_next_entry - tpm_state.log_base;
+
+	dprintf("log size: %u\n", logsize);
+
+	return logsize;
+}
+
 /*
  * tpm_hash_all: Function for interfacing with the firmware API
  */
