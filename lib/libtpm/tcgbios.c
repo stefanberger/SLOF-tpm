@@ -161,6 +161,19 @@ uint32_t tpm_driver_get_state(void)
 	return spapr_vtpm_get_state();
 }
 
+/*
+ * tpm_driver_get_failure_reason: Function for interfacing with the firmware
+ *                                API
+ */
+uint32_t tpm_driver_get_failure_reason(void)
+{
+	/* do not check for a working TPM here */
+	if (!tpm_state.tpm_found)
+		return VTPM_DRV_STATE_INVALID;
+
+	return spapr_vtpm_get_error();
+}
+
 /* Helper function for sending TPM commands that take a single 
  * optional parameter (0, 1, or 2 bytes) and have no special response.
  */
