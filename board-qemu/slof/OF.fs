@@ -170,6 +170,9 @@ CREATE version-str 10 ALLOT
     version-str 8 + @               \ end
     over - dump-display-write
     " Press 's' to enter Open Firmware." dump-display-write
+    s" /ibm,vtpm" find-node IF
+        "  Press 't' to enter TPM menu." terminal-write drop
+    THEN
     cr cr
     temp-ptr disp-size > IF
         temp-ptr disp-size MOD
