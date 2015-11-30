@@ -545,7 +545,15 @@ B9E5                CONSTANT GPT-BASIC-DATA-PARTITION-2
 \ load from a bootable partition
 : load-from-boot-partition ( addr -- size )
    debug-disk-label? IF ." Trying DOS boot " .s cr THEN
-   dup load-from-dos-boot-partition ?dup 0 <> IF nip EXIT THEN
+   dup load-from-dos-boot-partition ?dup 0 <> IF
+      nip
+      block s" /ibm,vtpm" find-node dup IF
+         s" measure-hdd-mbr" rot $call-static
+      ELSE
+         2drop
+      THEN
+      EXIT
+   THEN
 
    debug-disk-label? IF ." Trying CHRP boot " .s cr THEN
    1 disk-chrp-boot !
