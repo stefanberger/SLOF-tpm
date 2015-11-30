@@ -78,4 +78,9 @@ uint32_t spapr_vtpm_get_buffersize(void);
 vtpm_drv_state spapr_vtpm_get_state(void);
 vtpm_drv_error spapr_vtpm_get_error(void);
 
+struct tpm_req_header;
+int tpmhw_transmit(uint8_t locty, struct tpm_req_header *req,
+                   void *respbuffer, uint32_t *respbufferlen,
+                   enum tpm_duration_type to_t);
+
 #endif /* TPM_DRIVERS_H */
