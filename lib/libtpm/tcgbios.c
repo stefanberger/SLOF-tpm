@@ -38,6 +38,8 @@
 #define dprintf(_x ...)
 #endif
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 struct tpm_state {
 	unsigned tpm_probed:1;
 	unsigned tpm_found:1;
@@ -798,4 +800,26 @@ int tpm_get_state(void)
 	dprintf("TPM state flags = 0x%x\n", state);
 
 	return state;
+}
+
+/*
+ * tpm_get_maximum_cmd_size: Function for interfacing with the firmware API
+ *
+ * This function returns the maximum size a TPM command (or response) may have.
+ */
+uint32_t tpm_get_maximum_cmd_size(void)
+{
+	struct tpm_rsp_getcap_buffersize trgb;
+	int ret;
+
+	if (!tpm_is_working())
+		return 0;
+
+	ret = get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_INPUT_BUFFER,
+	                     &trgb.hdr, sizeof(trgb));
+	if (ret)
+		return 0;
+
+	return  MIN(cpu_to_be32(trgb.buffersize),
+	            spapr_vtpm_get_buffersize());
 }
