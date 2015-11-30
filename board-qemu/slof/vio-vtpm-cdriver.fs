@@ -107,6 +107,14 @@ false VALUE vtpm-debug?
 ;
 
 \ firmware API call
+: get-failure-reason ( -- reason )
+    " get-failure-reason" vtpm-call-forward IF
+        \ vtpm-call-forward failed; return a value
+        0 \ invalid
+    THEN
+;
+
+\ firmware API call
 : hash-all ( data-ptr data-len hash-ptr -- )
     " hash-all" vtpm-call-forward IF
         \ vtpm-call-forward failed; clean up stack
