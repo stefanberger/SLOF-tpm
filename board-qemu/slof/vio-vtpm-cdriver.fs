@@ -136,3 +136,9 @@ vtpm-init
 
 \ setup the log
 include vtpm-sml.fs
+
+s" /ibm,vtpm" find-node dup IF
+  s" measure-scrtm" rot $call-static
+ELSE
+  drop
+THEN
