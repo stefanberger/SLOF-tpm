@@ -1,0 +1,106 @@
+This directory hosts (v)TPM related code.
+
+Background:
+-----------
+
+A TPM is a crypto chip that is found in many systems. Besides it offering
+a secure key store, among other functionality, it is also used to implement
+'trusted boot'. This is realized by code in the firmware measuring parts of the
+firmware's code and data as well as system data, such as the boot block, and
+logging these measurements and storing (extending) them in the TPM's platform
+configuration register (PCR).
+
+The benefits of having a TPM (or vTPM) in a system are:
+
+- enablement of trusted boot; this allow us to eventually extend the chain
+  of trust from the hypervisor to the guests
+- enablement of attestation so that one can verify what software is
+  running on a machine (OpenPTS, OpenAttestation)
+- provides TPM functionality to VMs, which includes a standardized
+  mechanism to store keys and other blobs (Linux trusted keys,
+  GNU TLS's TPM extensions)
+
+
+QEMU/KVM + SLOF support:
+------------------------
+
+To enable a vTPM with QEMU, the following steps need to be followed
+
+- build libtpms (Fedora users can install it using 'yum install libtpms')
+
+  #> git clone https://github.com/stefanberger/libtpms
+
+  Development is occurring in the tpm2-preview.revXYZ branches.
+  You may need to check the available branches and get the latest one:
+
+  #> git branch -r
+  #> git checkout origin/tpm2-preview.rev146 -b tpm2-preview.rev146
+  #> cd libtpms
+  #> ./bootstrap.sh
+
+  The following step may require to install dependencies
+
+  #> ./configure --prefix=/usr --with-tpm2 --with-openssl
+  #> make
+  #> make check
+  #> make install
+
+- build swtpm
+
+  #> git clone https://github.com/stefanberger/swtpm
+
+  Development for TPM2 is occurring in the tpm2-preview branch.
+
+  #> git checkout origin/tpm2-preview -b tpm2-preview
+  #> cd swtpm
+  #> ./bootstrap.sh
+
+  The following step may require to install dependencies
+
+  #> ./configure --prefix=/usr --with-openssl
+  #> make
+  #> make check
+  #> make install
+
+- build QEMU with vTPM support:
+
+  #> git clone https://github.com/stefanberger/qemu-tpm
+  #> cd qemu-tpm
+
+  The PPC64 patches are currently in the tpm-next+ branch
+  #> git checkout origin/tpm2-next+ -b tpm-next+
+
+  The following step may require to install dependencies
+
+  #> ./configure --prefix=/usr --enable-kvm --target-list="ppc64-softmmu"
+  #> make
+  #> make install
+
+To start a QEMU VM with an attached vTPM (CUSE TPM), run the following commands
+as 'root'. The following will setup the vTPM so that its state will be stored
+in /tmp. A unique directory for each VM instance with attached vTPM
+should be provided. Whenever QEMU is started, the swtpm_cuse has to be started
+before it. The './boot_rom.bin' represents SLOF with vTPM extensions built
+in.
+
+  #> swtpm socket --tpmstate dir=/tmp --ctrl type=unixio,path=/tmp/ctrl.sock
+
+  In another terminal:
+
+  #> qemu-system-ppc64 \
+      -enable-kvm \
+      -boot menu=on \
+      --chardev socket,id=chrtpm,path=/tmp \
+      -tpmdev emulator,id=tpm0,chardev=chrtpm \
+      -device tpm-spapr,tpmdev=tpm0 
+      -vnc 0.0.0.0:2 \
+      [...]
+
+     Add hard disk and other parameters as needed.
+
+Notes:
+  - The Linux kernel in the VM must have the tpm_ibmvtpm module available
+    or built-in.
+
+  - 'swtpm_ioctl --unix /tmp/ctrl.sock -s' can be used to gracefully shut
+    down the vTPM.
