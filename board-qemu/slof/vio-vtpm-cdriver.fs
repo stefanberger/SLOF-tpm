@@ -153,6 +153,15 @@ false VALUE vtpm-debug?
     THEN
 ;
 
+0 0 s" ibm,sml-efi-reformat-supported" property
+
+\ firmware API call
+: reformat-sml-to-efi-alignment ( -- success )
+    " reformat-sml-to-efi-alignment" vtpm-call-forward IF
+        false
+    THEN
+;
+
 : open ( )
     vtpm-debug? IF ." VTPM: vTPM open()" cr THEN
     true
