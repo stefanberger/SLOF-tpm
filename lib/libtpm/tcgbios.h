@@ -24,6 +24,7 @@ struct pcpes;
 uint32_t tpm_start(void);
 void tpm_finalize(void);
 uint32_t tpm_unassert_physical_presence(void);
+uint32_t tpm_measure_scrtm(void);
 void tpm_set_log_parameters(void *address, unsigned int size);
 uint32_t tpm_get_logsize(void);
 uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes);
