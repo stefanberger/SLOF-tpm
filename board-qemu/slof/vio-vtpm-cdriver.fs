@@ -75,6 +75,30 @@ false VALUE vtpm-debug?
 ;
 
 \ firmware API call
+: sml-get-allocated-size ( -- buffer-size)
+    " sml-get-allocated-size" vtpm-call-forward IF
+        \ vtpm-call-forward failed
+        0
+    THEN
+;
+
+\ firmware API call
+: sml-get-handover-size ( -- size)
+    " sml-get-handover-size" vtpm-call-forward IF
+        \ vtpm-call-forward failed
+        0
+    THEN
+;
+
+\ firmware API call
+: sml-handover ( dest size -- )
+    " sml-handover" vtpm-call-forward IF
+        \ vtpm-call-forward failed; clean up stack
+        2drop
+    THEN
+;
+
+\ firmware API call
 : hash-all ( data-ptr data-len hash-ptr -- )
     " hash-all" vtpm-call-forward IF
         \ vtpm-call-forward failed; clean up stack
