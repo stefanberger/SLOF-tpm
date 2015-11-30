@@ -449,6 +449,11 @@ vtpm_drv_error spapr_vtpm_get_error(void)
 	return vtpm_drv_error_get();
 }
 
+void spapr_vtpm_set_error(vtpm_drv_error errcode)
+{
+	spapr_vtpm.driver_error = errcode;
+}
+
 /**** higher layer interface ****/
 
 bool spapr_is_vtpm_present(void)
