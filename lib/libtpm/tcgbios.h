@@ -18,5 +18,6 @@
 uint32_t tpm_start(void);
 void tpm_finalize(void);
 uint32_t tpm_unassert_physical_presence(void);
+void tpm_set_log_parameters(void *address, unsigned int size);
 
 #endif /* TCGBIOS_H */
