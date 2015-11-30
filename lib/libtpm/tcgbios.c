@@ -139,7 +139,7 @@ static void probe_tpm(void)
 	tpm_state.tpm_working = tpm_state.tpm_found;
 }
 
-static bool tpm_is_working(void)
+bool tpm_is_working(void)
 {
 	if (!tpm_state.tpm_probed)
 		probe_tpm();
@@ -448,8 +448,8 @@ static uint32_t tpm_add_measurement_to_log(uint32_t pcrindex,
 					   uint32_t eventtype,
 					   const char *info,
 					   uint32_t infolen,
-					   const uint8_t *data,
-					   uint32_t datalen)
+					   const uint8_t *hashdata,
+					   uint32_t hashdatalen)
 {
 	struct pcpes pcpes;
 
@@ -457,7 +457,7 @@ static uint32_t tpm_add_measurement_to_log(uint32_t pcrindex,
 	pcpes.eventtype = eventtype;
 	memset(&pcpes.digest, 0, sizeof(pcpes.digest));
 
-	return hash_log_extend(&pcpes, data, datalen,
+	return hash_log_extend(&pcpes, hashdata, hashdatalen,
 			       info, infolen, pcrindex, true);
 }
 
@@ -734,4 +734,32 @@ static int tpm_process_cfg(tpm_ppi_op ppi_op, bool verbose)
 uint32_t tpm_process_opcode(uint8_t op, bool verbose)
 {
 	return tpm_process_cfg(op, verbose);
+}
+
+int tpm_get_state(void)
+{
+	int state = 0;
+	struct tpm_permanent_flags pf;
+	bool has_owner;
+
+	if (read_permanent_flags((char *)&pf, sizeof(pf)) ||
+	    read_has_owner(&has_owner))
+		return ~0;
+
+	if (!pf.flags[PERM_FLAG_IDX_DISABLE])
+		state |= TPM_STATE_ENABLED; /* enabled */
+
+	if (!pf.flags[PERM_FLAG_IDX_DEACTIVATED])
+		state |= TPM_STATE_ACTIVE; /* active */
+
+	if (has_owner) {
+		state |= TPM_STATE_OWNED; /* has owner */
+	} else {
+		if (pf.flags[PERM_FLAG_IDX_OWNERSHIP])
+			state |= TPM_STATE_OWNERINSTALL; /* owner can be installed */
+	}
+
+	dprintf("TPM state flags = 0x%x\n", state);
+
+	return state;
 }
