@@ -73,6 +73,10 @@ typedef enum {
 /* the max. buffer size by the external TPM is 4k */
 #define PAPR_VTPM_MAX_BUFFER_SIZE       4096
 
+/* TPM version */
+#define TPM_VERSION_1_2  1
+#define TPM_VERSION_2    2
+
 /* exported functions */
 bool spapr_is_vtpm_present(void);
 void spapr_vtpm_finalize(void);
@@ -81,6 +85,7 @@ uint32_t spapr_vtpm_get_buffersize(void);
 vtpm_drv_state spapr_vtpm_get_state(void);
 vtpm_drv_error spapr_vtpm_get_error(void);
 void spapr_vtpm_set_error(vtpm_drv_error errcode);
+uint32_t spapr_get_tpm_version(void);
 
 struct tpm_req_header;
 int tpmhw_transmit(uint8_t locty, struct tpm_req_header *req,
