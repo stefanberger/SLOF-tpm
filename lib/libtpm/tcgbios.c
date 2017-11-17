@@ -1213,13 +1213,93 @@ static int tpm12_process_cfg(tpm_ppi_op ppi_op, bool verbose)
 	return ret;
 }
 
+static int
+tpm20_clearcontrol(uint8_t disable, bool verbose)
+{
+	struct tpm2_req_clearcontrol trc = {
+		.hdr.tag     = cpu_to_be16(TPM2_ST_SESSIONS),
+		.hdr.totlen  = cpu_to_be32(sizeof(trc)),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_ClearControl),
+		.authhandle = cpu_to_be32(TPM2_RH_PLATFORM),
+		.authblocksize = cpu_to_be32(sizeof(trc.authblock)),
+		.authblock = {
+			.handle = cpu_to_be32(TPM2_RS_PW),
+			.noncesize = cpu_to_be16(0),
+			.contsession = TPM2_YES,
+			.pwdsize = cpu_to_be16(0),
+		},
+		.disable = disable,
+	};
+	struct tpm_rsp_header rsp;
+	uint32_t resp_length = sizeof(rsp);
+	int ret = tpmhw_transmit(0, &trc.hdr, &rsp, &resp_length,
+				 TPM_DURATION_TYPE_SHORT);
+	if (ret || resp_length != sizeof(rsp) || rsp.errcode)
+		ret = -1;
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_ClearControl = 0x%08x\n",
+		ret);
+
+	return ret;
+}
+
+static int
+tpm20_clear(void)
+{
+	struct tpm2_req_clear trq = {
+		.hdr.tag	 = cpu_to_be16(TPM2_ST_SESSIONS),
+		.hdr.totlen  = cpu_to_be32(sizeof(trq)),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_Clear),
+		.authhandle = cpu_to_be32(TPM2_RH_PLATFORM),
+		.authblocksize = cpu_to_be32(sizeof(trq.authblock)),
+		.authblock = {
+			.handle = cpu_to_be32(TPM2_RS_PW),
+			.noncesize = cpu_to_be16(0),
+			.contsession = TPM2_YES,
+			.pwdsize = cpu_to_be16(0),
+		},
+	};
+	struct tpm_rsp_header rsp;
+	uint32_t resp_length = sizeof(rsp);
+	int ret = tpmhw_transmit(0, &trq.hdr, &rsp, &resp_length,
+				 TPM_DURATION_TYPE_MEDIUM);
+	if (ret || resp_length != sizeof(rsp) || rsp.errcode)
+		ret = -1;
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_Clear = 0x%08x\n",
+		ret);
+
+	return ret;
+}
+
+static int tpm20_process_cfg(tpm_ppi_op msgCode, bool verbose)
+{
+	int ret = 0;
+
+	switch (msgCode) {
+	case TPM_PPI_OP_NOOP: /* no-op */
+		break;
+
+	case TPM_PPI_OP_CLEAR:
+		ret = tpm20_clearcontrol(false, verbose);
+		if (!ret)
+			ret = tpm20_clear();
+		break;
+	}
+
+	if (ret)
+		dprintf("Op %d: An error occurred: 0x%x\n", msgCode, ret);
+
+	return ret;
+}
+
 uint32_t tpm_process_opcode(uint8_t op, bool verbose)
 {
 	switch (TPM_version) {
 	case TPM_VERSION_1_2:
 		return tpm12_process_cfg(op, verbose);
 	case TPM_VERSION_2:
-		break;
+		return tpm20_process_cfg(op, verbose);
 	}
 	return TCGBIOS_GENERAL_ERROR;
 }
