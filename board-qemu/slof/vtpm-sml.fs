@@ -364,7 +364,11 @@ log-base LOG-SIZE tpm-set-log-parameters
 ;
 
 : vtpm-menu
-    vtpm12-menu
+    tpm-get-tpm-version CASE
+    1 OF
+        vtpm12-menu
+      ENDOF
+    ENDCASE
 ;
 
 : open  true ;
