@@ -31,7 +31,7 @@
 #include "helpers.h"
 
 #undef TCGBIOS_DEBUG
-//#define TCGBIOS_DEBUG
+#define TCGBIOS_DEBUG
 #ifdef TCGBIOS_DEBUG
 #define dprintf(_x ...) do { printf("TCGBIOS: " _x); } while(0)
 #else
@@ -747,9 +747,14 @@ static int tpm20_startup(void)
 	if (ret)
 		goto err_exit;
 
+	/* FIXME: for some reason we have to call this... but this should nt
+	 * be here...
+	 */
 	ret = tpm20_write_EfiSpecIdEventStruct();
+#if 0
 	if (ret)
 		goto err_exit;
+#endif
 
 	return 0;
 
@@ -811,11 +816,20 @@ uint32_t tpm_unassert_physical_presence(void)
 
 void tpm_set_log_parameters(void *addr, unsigned int size)
 {
+	int ret;
+
 	dprintf("Log is at 0x%llx; size is %u bytes\n",
 		(uint64_t)addr, size);
 	tpm_state.log_base = addr;
 	tpm_state.log_area_next_entry = addr;
 	tpm_state.log_area_size = size;
+
+	switch (TPM_version) {
+	case TPM_VERSION_2:
+		ret = tpm20_write_EfiSpecIdEventStruct();
+		if (ret)
+			tpm_set_failure();
+	}
 }
 
 uint32_t tpm_get_logsize(void)
@@ -1252,6 +1266,9 @@ uint32_t tpm_measure_scrtm(void)
 
 	dprintf("Measure S-CRTM Version: addr = %p, length = %d\n",
 		version_start, version_length);
+
+	if (TPM_version == TPM_VERSION_2)
+		return 0;
 
 	rc = tpm_add_measurement_to_log(0, EV_S_CRTM_VERSION,
 					version_start, version_length,
