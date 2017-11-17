@@ -202,6 +202,9 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM2_NO                     0
 #define TPM2_YES                    1
 
+#define TPM2_SU_CLEAR               0x0000
+#define TPM2_SU_STATE               0x0001
+
 #define TPM2_RH_OWNER               0x40000001
 #define TPM2_RS_PW                  0x40000009
 #define TPM2_RH_ENDORSEMENT         0x4000000b
@@ -213,6 +216,8 @@ struct tpm_rsp_getcap_buffersize {
 
 /* TPM 2 commands */
 #define TPM2_CC_HierarchyControl    0x121
+#define TPM2_CC_SelfTest            0x143
+#define TPM2_CC_Startup             0x144
 
 struct tpm2_authblock {
 	uint32_t handle;
