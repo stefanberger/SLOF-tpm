@@ -223,3 +223,12 @@ PRIM(tpm_X2d_get_X2d_tpm_X2d_version)
 	PUSH;
 	TOS.n = tpm_get_tpm_version();
 MIRP
+
+/*******************************************************************/
+/* Firmware API                                                    */
+/* SLOF:   tpm20-menu ( -- tpm-version )                           */
+/* LIBTPM: tpm20_menu()                                            */
+/*******************************************************************/
+PRIM(tpm20_X2d_menu)
+	tpm20_menu();
+MIRP
