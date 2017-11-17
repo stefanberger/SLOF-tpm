@@ -60,6 +60,8 @@ static struct tpm_state tpm_state;
 
 typedef uint8_t tpm_ppi_op;
 
+#define TPM_version spapr_get_tpm_version()
+
 /*
  * TPM 1.2 logs are written in big endian format.
  */
@@ -939,4 +941,9 @@ void tpm_driver_set_failure_reason(uint32_t errcode)
 		return;
 
 	spapr_vtpm_set_error(errcode);
+}
+
+uint32_t tpm_get_tpm_version(void)
+{
+	return TPM_version;
 }
