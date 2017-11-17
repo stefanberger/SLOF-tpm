@@ -195,4 +195,12 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM_PPI_OP_SET_OWNERINSTALL_TRUE 8
 #define TPM_PPI_OP_SET_OWNERINSTALL_FALSE 9
 
+/****************************************************************
+ * TPM v2.0 hardware commands
+ ****************************************************************/
+
+/* TPM 2 command tags */
+#define TPM2_ST_NO_SESSIONS         0x8001
+#define TPM2_ST_SESSIONS            0x8002
+
 #endif /* TCGBIOS_INT_H */
