@@ -804,10 +804,14 @@ void tpm_finalize(void)
  */
 uint32_t tpm_unassert_physical_presence(void)
 {
-	if (tpm_state.has_physical_presence)
-		tpm_simple_cmd(0, TPM_ORD_PHYSICAL_PRESENCE,
-			       2, TPM_PP_NOT_PRESENT_LOCK,
-			       TPM_DURATION_TYPE_SHORT);
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		if (tpm_state.has_physical_presence)
+			tpm_simple_cmd(0, TPM_ORD_PHYSICAL_PRESENCE,
+				       2, TPM_PP_NOT_PRESENT_LOCK,
+				       TPM_DURATION_TYPE_SHORT);
+	break;
+	}
 
 	return 0;
 }
