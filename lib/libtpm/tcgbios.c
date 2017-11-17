@@ -1021,7 +1021,7 @@ uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
  * TPM Configuration Menu
  ****************************************************************/
 
-static int read_has_owner(bool *has_owner)
+static int tpm12_read_has_owner(bool *has_owner)
 {
 	struct tpm_rsp_getcap_ownerauth oauth;
 	int ret = tpm12_get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_OWNER,
@@ -1034,7 +1034,7 @@ static int read_has_owner(bool *has_owner)
 	return 0;
 }
 
-static int enable_tpm(bool enable, bool verbose)
+static int tpm12_enable_tpm(bool enable, bool verbose)
 {
 	struct tpm_permanent_flags pf;
 	int ret = tpm12_read_permanent_flags((char *)&pf, sizeof(pf));
@@ -1057,7 +1057,7 @@ static int enable_tpm(bool enable, bool verbose)
 	return ret;
 }
 
-static int activate_tpm(bool activate, bool allow_reset, bool verbose)
+static int tpm12_activate_tpm(bool activate, bool allow_reset, bool verbose)
 {
 	struct tpm_permanent_flags pf;
 	int ret = tpm12_read_permanent_flags((char *)&pf, sizeof(pf));
@@ -1084,21 +1084,21 @@ static int activate_tpm(bool activate, bool allow_reset, bool verbose)
 	return 0;
 }
 
-static int enable_activate(int allow_reset, bool verbose)
+static int tpm12_enable_activate(int allow_reset, bool verbose)
 {
-	int ret = enable_tpm(true, verbose);
+	int ret = tpm12_enable_tpm(true, verbose);
 	if (ret)
 		return ret;
 
-	return activate_tpm(true, allow_reset, verbose);
+	return tpm12_activate_tpm(true, allow_reset, verbose);
 }
 
-static int force_clear(bool enable_activate_before,
-		       bool enable_activate_after,
-		       bool verbose)
+static int tpm12_force_clear(bool enable_activate_before,
+			     bool enable_activate_after,
+			     bool verbose)
 {
 	bool has_owner;
-	int ret = read_has_owner(&has_owner);
+	int ret = tpm12_read_has_owner(&has_owner);
 	if (ret)
 		return -1;
 	if (!has_owner) {
@@ -1108,7 +1108,7 @@ static int force_clear(bool enable_activate_before,
 	}
 
 	if (enable_activate_before) {
-		ret = enable_activate(false, verbose);
+		ret = tpm12_enable_activate(false, verbose);
 		if (ret) {
 			dprintf("TCGBIOS: Enabling/activating the TPM failed.\n");
 			return ret;
@@ -1127,14 +1127,14 @@ static int force_clear(bool enable_activate_before,
 		return 0;
 	}
 
-	return enable_activate(true, verbose);
+	return tpm12_enable_activate(true, verbose);
 }
 
-static int set_owner_install(bool allow, bool verbose)
+static int tpm12_set_owner_install(bool allow, bool verbose)
 {
 	bool has_owner;
 	struct tpm_permanent_flags pf;
-	int ret = read_has_owner(&has_owner);
+	int ret = tpm12_read_has_owner(&has_owner);
 	if (ret)
 		return -1;
 
@@ -1166,7 +1166,7 @@ static int set_owner_install(bool allow, bool verbose)
 	return 0;
 }
 
-static int tpm_process_cfg(tpm_ppi_op ppi_op, bool verbose)
+static int tpm12_process_cfg(tpm_ppi_op ppi_op, bool verbose)
 {
 	int ret = 0;
 
@@ -1175,31 +1175,31 @@ static int tpm_process_cfg(tpm_ppi_op ppi_op, bool verbose)
 		break;
 
 	case TPM_PPI_OP_ENABLE:
-		ret = enable_tpm(true, verbose);
+		ret = tpm12_enable_tpm(true, verbose);
 		break;
 
 	case TPM_PPI_OP_DISABLE:
-		ret = enable_tpm(false, verbose);
+		ret = tpm12_enable_tpm(false, verbose);
 		break;
 
 	case TPM_PPI_OP_ACTIVATE:
-		ret = activate_tpm(true, true, verbose);
+		ret = tpm12_activate_tpm(true, true, verbose);
 		break;
 
 	case TPM_PPI_OP_DEACTIVATE:
-		ret = activate_tpm(false, true, verbose);
+		ret = tpm12_activate_tpm(false, true, verbose);
 		break;
 
 	case TPM_PPI_OP_CLEAR:
-		ret = force_clear(true, false, verbose);
+		ret = tpm12_force_clear(true, false, verbose);
 		break;
 
 	case TPM_PPI_OP_SET_OWNERINSTALL_TRUE:
-		ret = set_owner_install(true, verbose);
+		ret = tpm12_set_owner_install(true, verbose);
 		break;
 
 	case TPM_PPI_OP_SET_OWNERINSTALL_FALSE:
-		ret = set_owner_install(false, verbose);
+		ret = tpm12_set_owner_install(false, verbose);
 		break;
 
 	default:
@@ -1215,17 +1215,23 @@ static int tpm_process_cfg(tpm_ppi_op ppi_op, bool verbose)
 
 uint32_t tpm_process_opcode(uint8_t op, bool verbose)
 {
-	return tpm_process_cfg(op, verbose);
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return tpm12_process_cfg(op, verbose);
+	case TPM_VERSION_2:
+		break;
+	}
+	return TCGBIOS_GENERAL_ERROR;
 }
 
-int tpm_get_state(void)
+static int tpm12_get_state(void)
 {
 	int state = 0;
 	struct tpm_permanent_flags pf;
 	bool has_owner;
 
 	if (tpm12_read_permanent_flags((char *)&pf, sizeof(pf)) ||
-	    read_has_owner(&has_owner))
+	    tpm12_read_has_owner(&has_owner))
 		return ~0;
 
 	if (!pf.flags[PERM_FLAG_IDX_DISABLE])
@@ -1244,6 +1250,17 @@ int tpm_get_state(void)
 	dprintf("TPM state flags = 0x%x\n", state);
 
 	return state;
+}
+
+int tpm_get_state(void)
+{
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return tpm12_get_state();
+	case TPM_VERSION_2:
+		break;
+	}
+	return ~0;
 }
 
 uint32_t tpm_measure_scrtm(void)
