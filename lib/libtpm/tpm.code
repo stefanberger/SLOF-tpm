@@ -213,3 +213,13 @@ PRIM(tpm_X2d_pass_X2d_through_X2d_to_X2d_tpm)
 	void *buf = TOS.a;
 	TOS.n = tpm_pass_through_to_tpm(buf, cmdsize);
 MIRP
+
+/*******************************************************************/
+/* Firmware API                                                    */
+/* SLOF:   tpm-get-tpm-version ( -- tpm-version )                  */
+/* LIBTPM: tpm_version = tpm_get_tpm_version()                     */
+/*******************************************************************/
+PRIM(tpm_X2d_get_X2d_tpm_X2d_version)
+	PUSH;
+	TOS.n = tpm_get_tpm_version();
+MIRP
