@@ -363,10 +363,43 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: tpm20-menu-show
+    tpm-is-working IF
+      ." c. Clear" cr
+
+      cr
+    ELSE
+       ." The TPM is not working correctly." cr
+    THEN
+
+    ." Press escape to continue boot." cr cr
+;
+
+: vtpm20-menu
+    tpm-is-working IF
+        tpm20-menu-show
+        BEGIN
+            0 \ loop end-flag                                           ( 0 )
+            key CASE
+            [char] c OF
+                         0 PPI_OP_CLEAR process-opcode
+                         tpm20-menu-show
+                     ENDOF
+            1b       OF                                                 ( 0 )
+                         drop 1                                         ( 1 )
+                     ENDOF
+            ENDCASE
+        UNTIL
+    THEN
+;
+
 : vtpm-menu
   tpm-get-tpm-version CASE
   1 OF
       vtpm12-menu
+    ENDOF
+  2 OF
+      vtpm20-menu
     ENDOF
   ENDCASE
 ;
