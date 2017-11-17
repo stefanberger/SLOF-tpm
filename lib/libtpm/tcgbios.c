@@ -1271,7 +1271,7 @@ uint32_t tpm_process_opcode(uint8_t op, bool verbose)
 	return tpm12_process_cfg(op, verbose);
 }
 
-int tpm_get_state(void)
+static int tpm12_get_state(void)
 {
 	int state = 0;
 	struct tpm_permanent_flags pf;
@@ -1297,6 +1297,17 @@ int tpm_get_state(void)
 	dprintf("TPM state flags = 0x%x\n", state);
 
 	return state;
+}
+
+int tpm_get_state(void)
+{
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return tpm12_get_state();
+	case TPM_VERSION_2:
+		break;
+	}
+	return ~0;
 }
 
 uint32_t tpm_measure_scrtm(void)
