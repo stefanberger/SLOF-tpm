@@ -120,13 +120,21 @@ tpm_simple_cmd(uint8_t locty, uint32_t ordinal, int param_size, uint16_t param,
 		uint16_t param;
 	} __attribute__((packed)) req = {
 		.trqh.totlen = cpu_to_be32(sizeof(req.trqh) + param_size),
-		.trqh.tag = cpu_to_be16(TPM_TAG_RQU_CMD),
 		.trqh.ordinal = cpu_to_be32(ordinal),
 	};
 	uint8_t obuffer[64];
 	struct tpm_rsp_header *trsh = (void *)obuffer;
 	uint32_t obuffer_len = sizeof(obuffer);
 	int ret;
+
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		req.trqh.tag = cpu_to_be16(TPM_TAG_RQU_CMD);
+		break;
+	case TPM_VERSION_2:
+		req.trqh.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS);
+		break;
+	}
 
 	switch (param_size) {
 	case 2:
