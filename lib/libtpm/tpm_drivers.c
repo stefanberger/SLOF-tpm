@@ -469,6 +469,11 @@ void spapr_vtpm_set_error(vtpm_drv_error errcode)
 	spapr_vtpm.driver_error = errcode;
 }
 
+uint32_t spapr_get_tpm_version(void)
+{
+	return spapr_vtpm.tpm_version;
+}
+
 /**** higher layer interface ****/
 
 bool spapr_is_vtpm_present(void)
