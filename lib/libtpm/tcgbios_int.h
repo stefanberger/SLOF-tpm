@@ -276,6 +276,8 @@ struct tpm_rsp_getcap_buffersize {
 
 /* TPM 2 commands */
 #define TPM2_CC_HierarchyControl    0x121
+#define TPM2_CC_Clear               0x126
+#define TPM2_CC_ClearControl        0x127
 #define TPM2_CC_SelfTest            0x143
 #define TPM2_CC_Startup             0x144
 #define TPM2_CC_GetCapability       0x17a
@@ -299,6 +301,21 @@ struct tpm2_req_extend {
 	uint32_t authblocksize;
 	struct tpm2_authblock authblock;
 	uint8_t digest[0];
+} __attribute__((packed));
+
+struct tpm2_req_clearcontrol {
+	struct tpm_req_header hdr;
+	uint32_t authhandle;
+	uint32_t authblocksize;
+	struct tpm2_authblock authblock;
+	uint8_t disable;
+} __attribute__((packed));
+
+struct tpm2_req_clear {
+	struct tpm_req_header hdr;
+	uint32_t authhandle;
+	uint32_t authblocksize;
+	struct tpm2_authblock authblock;
 } __attribute__((packed));
 
 struct tpm2_req_hierarchycontrol {
