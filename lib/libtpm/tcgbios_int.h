@@ -56,6 +56,7 @@
 
 /* event types */
 #define EV_POST_CODE                     1
+#define EV_NO_ACTION                     3
 #define EV_SEPARATOR                     4
 #define EV_ACTION                        5
 #define EV_EVENT_TAG                     6
@@ -65,6 +66,59 @@
 #define EV_IPL_PARTITION_DATA           14
 
 #define SHA1_BUFSIZE                    20
+#define SHA256_BUFSIZE                  32
+#define SHA384_BUFSIZE                  48
+#define SHA512_BUFSIZE                  64
+#define SM3_256_BUFSIZE                 32
+
+struct tpm2_digest_value {
+	uint16_t hashAlg;
+	uint8_t hash[0]; /* size depends on hashAlg */
+} __attribute__((packed));
+
+struct tpm2_digest_values {
+	uint32_t count;
+	struct tpm2_digest_value digest[0];
+} __attribute__((packed));
+
+/* Each entry in the TPM log contains: a tpm_log_header, a variable
+ * length digest, a tpm_log_trailer, and a variable length event.  The
+ * 'digest' matches what is sent to the TPM hardware via the Extend
+ * command.  On TPM1.2 the digest is a SHA1 hash; on TPM2.0 the digest
+ * contains a tpm2_digest_values struct followed by a variable number
+ * of tpm2_digest_value structs (as specified by the hardware via the
+ * TPM2_CAP_PCRS request).
+ */
+struct tpm_log_header {
+	uint32_t pcrindex;
+	uint32_t eventtype;
+	uint8_t digest[0];
+} __attribute__((packed));
+
+struct tpm_log_trailer {
+	uint32_t eventdatasize;
+	uint8_t event[0];
+} __attribute__((packed));
+
+struct TCG_EfiSpecIdEventStruct {
+	uint8_t signature[16];
+	uint32_t platformClass;
+	uint8_t specVersionMinor;
+	uint8_t specVersionMajor;
+	uint8_t specErrata;
+	uint8_t uintnSize;
+	uint32_t numberOfAlgorithms;
+	struct TCG_EfiSpecIdEventAlgorithmSize {
+		uint16_t algorithmId;
+		uint16_t digestSize;
+	} digestSizes[0];
+	/*
+	uint8_t vendorInfoSize;
+	uint8_t vendorInfo[0];
+	*/
+} __attribute__((packed));
+
+#define TPM_TCPA_ACPI_CLASS_CLIENT 0
 
 /* Input and Output blocks for the TCG BIOS commands */
 
@@ -210,6 +264,12 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM2_RH_ENDORSEMENT         0x4000000b
 #define TPM2_RH_PLATFORM            0x4000000c
 
+#define TPM2_ALG_SHA1               0x0004
+#define TPM2_ALG_SHA256             0x000b
+#define TPM2_ALG_SHA384             0x000c
+#define TPM2_ALG_SHA512             0x000d
+#define TPM2_ALG_SM3_256            0x0012
+
 /* TPM 2 command tags */
 #define TPM2_ST_NO_SESSIONS         0x8001
 #define TPM2_ST_SESSIONS            0x8002
@@ -219,6 +279,7 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM2_CC_SelfTest            0x143
 #define TPM2_CC_Startup             0x144
 #define TPM2_CC_GetCapability       0x17a
+#define TPM2_CC_PCR_Extend          0x182
 
 /* TPM 2 Capabilities */
 #define TPM2_CAP_PCRS               0x00000005
@@ -230,6 +291,14 @@ struct tpm2_authblock {
 	uint16_t noncesize;  /* always 0 */
 	uint8_t contsession; /* always TPM2_YES */
 	uint16_t pwdsize;    /* always 0 */
+} __attribute__((packed));
+
+struct tpm2_req_extend {
+	struct tpm_req_header hdr;
+	uint32_t pcrindex;
+	uint32_t authblocksize;
+	struct tpm2_authblock authblock;
+	uint8_t digest[0];
 } __attribute__((packed));
 
 struct tpm2_req_hierarchycontrol {
