@@ -143,7 +143,7 @@ static int get_capability(uint32_t cap, uint32_t subcap,
 	return ret;
 }
 
-static int read_permanent_flags(char *buf, size_t buf_len)
+static int tpm12_read_permanent_flags(char *buf, size_t buf_len)
 {
 	struct tpm_rsp_getcap_perm_flags pf;
 	int ret;
@@ -159,7 +159,7 @@ static int read_permanent_flags(char *buf, size_t buf_len)
 	return 0;
 }
 
-static int determine_timeouts(void)
+static int tpm12_determine_timeouts(void)
 {
 	struct tpm_rsp_getcap_durations durations;
 	int i;
@@ -180,6 +180,17 @@ static int determine_timeouts(void)
 	spapr_vtpm_set_durations(durations.durations);
 
 	return 0;
+}
+
+static void tpm20_set_timeouts(void)
+{
+	uint32_t durations[3] = {
+		TPM2_DEFAULT_DURATION_SHORT,
+		TPM2_DEFAULT_DURATION_MEDIUM,
+		TPM2_DEFAULT_DURATION_LONG,
+	};
+
+	spapr_vtpm_set_durations(durations);
 }
 
 /*
@@ -326,7 +337,7 @@ bool tpm_log_event(struct pcpes *pcpes)
 	return (tpm_log_event_long(pcpes, event, event_length) == 0);
 }
 
-static int assert_physical_presence(void)
+static int tpm12_assert_physical_presence(void)
 {
 	struct tpm_permanent_flags pf;
 	int ret = tpm_simple_cmd(0, TPM_ORD_PHYSICAL_PRESENCE,
@@ -334,7 +345,7 @@ static int assert_physical_presence(void)
 	if (!ret)
 		return 0;
 
-	ret = read_permanent_flags((char *)&pf, sizeof(pf));
+	ret = tpm12_read_permanent_flags((char *)&pf, sizeof(pf));
 	if (ret)
 		return -1;
 
@@ -355,7 +366,7 @@ static int assert_physical_presence(void)
 	return -1;
 }
 
-static int tpm_startup(void)
+static int tpm12_startup(void)
 {
 	dprintf("Starting with TPM_Startup(ST_CLEAR)\n");
 	int ret = tpm_simple_cmd(0, TPM_ORD_STARTUP,
@@ -364,11 +375,11 @@ static int tpm_startup(void)
 		goto err_exit;
 
 	/* asssertion of physical presence is only possible after startup */
-	ret = assert_physical_presence();
+	ret = tpm12_assert_physical_presence();
 	if (!ret)
 		tpm_state.has_physical_presence = true;
 
-	ret = determine_timeouts();
+	ret = tpm12_determine_timeouts();
 	if (ret)
 		goto err_exit;
 
@@ -383,6 +394,49 @@ err_exit:
 	dprintf("TPM malfunctioning (line %d).\n", __LINE__);
 
 	tpm_set_failure();
+	return -1;
+}
+
+static int tpm20_startup(void)
+{
+	int ret;
+
+	tpm20_set_timeouts();
+
+	ret = tpm_simple_cmd(0, TPM2_CC_Startup,
+			     2, TPM2_SU_CLEAR, TPM_DURATION_TYPE_SHORT);
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_Startup(SU_CLEAR) = 0x%08x\n",
+		ret);
+
+	if (ret)
+		goto err_exit;
+
+	ret = tpm_simple_cmd(0, TPM2_CC_SelfTest,
+			     1, TPM2_YES, TPM_DURATION_TYPE_LONG);
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_SELF_TEST = 0x%08x\n",
+		ret);
+
+	if (ret)
+		goto err_exit;
+
+	return 0;
+
+err_exit:
+	dprintf("TCGBIOS: TPM malfunctioning (line %d).\n", __LINE__);
+
+	tpm_set_failure();
+	return -1;
+}
+
+static int tpm_startup(void)
+{
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return tpm12_startup();
+	case TPM_VERSION_2:
+		return tpm20_startup();
+	}
 	return -1;
 }
 
@@ -620,7 +674,7 @@ static int read_has_owner(bool *has_owner)
 static int enable_tpm(bool enable, bool verbose)
 {
 	struct tpm_permanent_flags pf;
-	int ret = read_permanent_flags((char *)&pf, sizeof(pf));
+	int ret = tpm12_read_permanent_flags((char *)&pf, sizeof(pf));
 	if (ret)
 		return -1;
 
@@ -643,7 +697,7 @@ static int enable_tpm(bool enable, bool verbose)
 static int activate_tpm(bool activate, bool allow_reset, bool verbose)
 {
 	struct tpm_permanent_flags pf;
-	int ret = read_permanent_flags((char *)&pf, sizeof(pf));
+	int ret = tpm12_read_permanent_flags((char *)&pf, sizeof(pf));
 	if (ret)
 		return -1;
 
@@ -727,7 +781,7 @@ static int set_owner_install(bool allow, bool verbose)
 		return 0;
 	}
 
-	ret = read_permanent_flags((char *)&pf, sizeof(pf));
+	ret = tpm12_read_permanent_flags((char *)&pf, sizeof(pf));
 	if (ret)
 		return -1;
 
@@ -807,7 +861,7 @@ int tpm_get_state(void)
 	struct tpm_permanent_flags pf;
 	bool has_owner;
 
-	if (read_permanent_flags((char *)&pf, sizeof(pf)) ||
+	if (tpm12_read_permanent_flags((char *)&pf, sizeof(pf)) ||
 	    read_has_owner(&has_owner))
 		return ~0;
 
