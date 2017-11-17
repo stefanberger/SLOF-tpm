@@ -1547,3 +1547,38 @@ uint32_t tpm_get_tpm_version(void)
 {
 	return TPM_version;
 }
+
+void tpm20_menu(void)
+{
+	int key_code;
+	int waitkey;
+	tpm_ppi_op msgCode;
+
+	for (;;) {
+		printf("1. Clear TPM\n");
+
+		printf("\nIf not change is desired or if this menu was reached by "
+		       "mistake, press ESC to\ncontinue the boot.\n");
+
+		msgCode = TPM_PPI_OP_NOOP;
+
+		waitkey = 1;
+
+		while (waitkey) {
+			key_code = SLOF_get_keystroke();
+			switch (key_code) {
+			case 27:
+				// ESC
+				return;
+			case '1':
+				msgCode = TPM_PPI_OP_CLEAR;
+				break;
+			default:
+				continue;
+			}
+
+			tpm20_process_cfg(msgCode, 0);
+			waitkey = 0;
+		}
+	}
+}
