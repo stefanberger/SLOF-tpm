@@ -214,6 +214,37 @@ static int tpm_extend(uint8_t *hash, uint32_t pcrindex)
 	return 0;
 }
 
+static int tpm20_hierarchycontrol(uint32_t hierarchy, uint8_t state)
+{
+	/* we will try to deactivate the TPM now - ignoring all errors */
+	struct tpm2_req_hierarchycontrol trh = {
+		.hdr.tag = cpu_to_be16(TPM2_ST_SESSIONS),
+		.hdr.totlen = cpu_to_be32(sizeof(trh)),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_HierarchyControl),
+		.authhandle = cpu_to_be32(TPM2_RH_PLATFORM),
+		.authblocksize = cpu_to_be32(sizeof(trh.authblock)),
+		.authblock = {
+			.handle = cpu_to_be32(TPM2_RS_PW),
+			.noncesize = cpu_to_be16(0),
+			.contsession = TPM2_YES,
+			.pwdsize = cpu_to_be16(0),
+		},
+		.enable = cpu_to_be32(hierarchy),
+		.state = state,
+	};
+	struct tpm_rsp_header rsp;
+	uint32_t resp_length = sizeof(rsp);
+	int ret = tpmhw_transmit(0, &trh.hdr, &rsp, &resp_length,
+				 TPM_DURATION_TYPE_MEDIUM);
+	if (ret || resp_length != sizeof(rsp) || rsp.errcode)
+		ret = -1;
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_HierarchyControl = 0x%08x\n",
+		ret);
+
+	return ret;
+}
+
 /****************************************************************
  * Setup and Measurements
  ****************************************************************/
@@ -228,9 +259,17 @@ bool tpm_is_working(void)
 
 static void tpm_set_failure(void)
 {
-	/* we will try to deactivate the TPM now - ignoring all errors */
-	tpm_simple_cmd(0, TPM_ORD_SET_TEMP_DEACTIVATED,
-		       0, 0, TPM_DURATION_TYPE_SHORT);
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		/* we will try to deactivate the TPM now - ignoring all errors */
+		tpm_simple_cmd(0, TPM_ORD_SET_TEMP_DEACTIVATED,
+			       0, 0, TPM_DURATION_TYPE_SHORT);
+		break;
+	case TPM_VERSION_2:
+		tpm20_hierarchycontrol(TPM2_RH_ENDORSEMENT, TPM2_NO);
+		tpm20_hierarchycontrol(TPM2_RH_OWNER, TPM2_NO);
+		break;
+	}
 
 	tpm_state.tpm_working = false;
 }
