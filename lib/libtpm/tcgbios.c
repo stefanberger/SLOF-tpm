@@ -213,6 +213,17 @@ static int tpm12_determine_timeouts(void)
 	return 0;
 }
 
+static void tpm20_set_timeouts(void)
+{
+	uint32_t durations[3] = {
+		TPM2_DEFAULT_DURATION_SHORT,
+		TPM2_DEFAULT_DURATION_MEDIUM,
+		TPM2_DEFAULT_DURATION_LONG,
+	};
+
+	spapr_vtpm_set_durations(durations);
+}
+
 /*
  * Extend a PCR of the TPM with the given hash
  *
@@ -417,6 +428,49 @@ err_exit:
 	return -1;
 }
 
+static int tpm20_startup(void)
+{
+	int ret;
+
+	tpm20_set_timeouts();
+
+	ret = tpm_simple_cmd(0, TPM2_CC_Startup,
+			     2, TPM2_SU_CLEAR, TPM_DURATION_TYPE_SHORT);
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_Startup(SU_CLEAR) = 0x%08x\n",
+		ret);
+
+	if (ret)
+		goto err_exit;
+
+	ret = tpm_simple_cmd(0, TPM2_CC_SelfTest,
+			     1, TPM2_YES, TPM_DURATION_TYPE_LONG);
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_SELF_TEST = 0x%08x\n",
+		ret);
+
+	if (ret)
+		goto err_exit;
+
+	return 0;
+
+err_exit:
+	dprintf("TCGBIOS: TPM malfunctioning (line %d).\n", __LINE__);
+
+	tpm_set_failure();
+	return -1;
+}
+
+static int tpm_startup(void)
+{
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return tpm12_startup();
+	case TPM_VERSION_2:
+		return tpm20_startup();
+	}
+	return -1;
+}
+
 uint32_t tpm_start(void)
 {
 	tpm_state.has_physical_presence = false;
@@ -429,7 +483,7 @@ uint32_t tpm_start(void)
 		return TCGBIOS_FATAL_COM_ERROR;
 	}
 
-	return tpm12_startup();
+	return tpm_startup();
 }
 
 void tpm_finalize(void)
