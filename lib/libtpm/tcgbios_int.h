@@ -218,6 +218,12 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM2_CC_HierarchyControl    0x121
 #define TPM2_CC_SelfTest            0x143
 #define TPM2_CC_Startup             0x144
+#define TPM2_CC_GetCapability       0x17a
+
+/* TPM 2 Capabilities */
+#define TPM2_CAP_PCRS               0x00000005
+
+/* TPM 2 data structures */
 
 struct tpm2_authblock {
 	uint32_t handle;
@@ -233,6 +239,31 @@ struct tpm2_req_hierarchycontrol {
 	struct tpm2_authblock authblock;
 	uint32_t enable;
 	uint8_t state;
+} __attribute__((packed));
+
+struct tpm2_req_getcapability {
+	struct tpm_req_header hdr;
+	uint32_t capability;
+	uint32_t property;
+	uint32_t propertycount;
+} __attribute__((packed));
+
+struct tpm2_res_getcapability {
+	struct tpm_rsp_header hdr;
+	uint8_t moreData;
+	uint32_t capability;
+	uint8_t data[0]; /* capability dependent data */
+} __attribute__((packed));
+
+struct tpms_pcr_selection {
+	uint16_t hashAlg;
+	uint8_t sizeOfSelect;
+	uint8_t pcrSelect[0];
+} __attribute__((packed));
+
+struct tpml_pcr_selection {
+	uint32_t count;
+	struct tpms_pcr_selection selections[0];
 } __attribute__((packed));
 
 #endif /* TCGBIOS_INT_H */
