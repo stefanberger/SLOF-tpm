@@ -30,6 +30,15 @@ enum tpm_duration_type {
 #define TPM_DEFAULT_DURATION_MEDIUM    20000000 /* us */
 #define TPM_DEFAULT_DURATION_LONG      60000000 /* us */
 
+/*
+ * TPM 2 command durations; we set them to the timeout values
+ * given in TPM Profile (PTP) Specification; exceeding those
+ * timeout values indicates a faulty TPM.
+ */
+#define TPM2_DEFAULT_DURATION_SHORT       750000 /* us */
+#define TPM2_DEFAULT_DURATION_MEDIUM     2000000 /* us */
+#define TPM2_DEFAULT_DURATION_LONG       2000000 /* us */
+
 /* firmware driver states */
 typedef enum {
 	VTPM_DRV_STATE_INVALID = 0,
