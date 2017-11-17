@@ -73,6 +73,9 @@ static void probe_tpm(void)
 	tpm_state.tpm_working = tpm_state.tpm_found;
 }
 
+static uint32_t tpm20_pcr_selection_size;
+static struct tpml_pcr_selection *tpm20_pcr_selection;
+
 /****************************************************************
  * TPM hardware command wrappers
  ****************************************************************/
@@ -123,8 +126,70 @@ tpm_simple_cmd(uint8_t locty, uint32_t ordinal, int param_size, uint16_t param,
 	return ret;
 }
 
-static int get_capability(uint32_t cap, uint32_t subcap,
-			  struct tpm_rsp_header *rsp, uint32_t rsize)
+static int
+tpm20_getcapability(uint32_t capability, uint32_t property, uint32_t count,
+	            struct tpm_rsp_header *rsp, uint32_t rsize)
+{
+	struct tpm2_req_getcapability trg = {
+		.hdr.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
+		.hdr.totlen = cpu_to_be32(sizeof(trg)),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_GetCapability),
+		.capability = cpu_to_be32(capability),
+		.property = cpu_to_be32(property),
+		.propertycount = cpu_to_be32(count),
+	};
+
+	uint32_t resp_size = rsize;
+	int ret = tpmhw_transmit(0, &trg.hdr, rsp, &resp_size,
+				 TPM_DURATION_TYPE_SHORT);
+	ret = (ret ||
+	       rsize < be32_to_cpu(rsp->totlen)) ? -1
+						 : be32_to_cpu(rsp->errcode);
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_GetCapability = 0x%08x\n",
+		ret);
+
+	return ret;
+}
+
+static int
+tpm20_get_pcrbanks(void)
+{
+	uint8_t buffer[128];
+	uint32_t size;
+	struct tpm2_res_getcapability *trg =
+		(struct tpm2_res_getcapability *)&buffer;
+
+	int ret = tpm20_getcapability(TPM2_CAP_PCRS, 0, 8, &trg->hdr,
+				      sizeof(buffer));
+	if (ret)
+		return ret;
+
+	/* defend against (broken) TPM sending packets that are too short */
+	uint32_t resplen = be32_to_cpu(trg->hdr.totlen);
+	if (resplen <= offset_of(struct tpm2_res_getcapability, data))
+		return -1;
+
+	size = resplen - offset_of(struct tpm2_res_getcapability, data);
+	/* we need a valid tpml_pcr_selection up to and including sizeOfSelect*/
+	if (size < offset_of(struct tpml_pcr_selection, selections) +
+		   offset_of(struct tpms_pcr_selection, pcrSelect))
+		return -1;
+
+	tpm20_pcr_selection = SLOF_alloc_mem(size);
+	if (tpm20_pcr_selection) {
+		memcpy(tpm20_pcr_selection, &trg->data, size);
+		tpm20_pcr_selection_size = size;
+	} else {
+		printf("TCGBIOS: Failed to allocated %u bytes.\n", size);
+		ret = -1;
+	}
+
+	return ret;
+}
+
+static int tpm12_get_capability(uint32_t cap, uint32_t subcap,
+				struct tpm_rsp_header *rsp, uint32_t rsize)
 {
 	struct tpm_req_getcap trgc = {
 		.hdr.tag = cpu_to_be16(TPM_TAG_RQU_CMD),
@@ -149,8 +214,8 @@ static int tpm12_read_permanent_flags(char *buf, size_t buf_len)
 	int ret;
 
 	memset(buf, 0, buf_len);
-	ret = get_capability(TPM_CAP_FLAG, TPM_CAP_FLAG_PERMANENT,
-			     &pf.hdr, sizeof(pf));
+	ret = tpm12_get_capability(TPM_CAP_FLAG, TPM_CAP_FLAG_PERMANENT,
+				   &pf.hdr, sizeof(pf));
 	if (ret)
 		return -1;
 
@@ -163,9 +228,8 @@ static int tpm12_determine_timeouts(void)
 {
 	struct tpm_rsp_getcap_durations durations;
 	int i;
-
-	int ret = get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_DURATION,
-				 &durations.hdr, sizeof(durations));
+	int ret = tpm12_get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_DURATION,
+				       &durations.hdr, sizeof(durations));
 	if (ret)
 		return ret;
 
@@ -420,6 +484,10 @@ static int tpm20_startup(void)
 	if (ret)
 		goto err_exit;
 
+	ret = tpm20_get_pcrbanks();
+	if (ret)
+		goto err_exit;
+
 	return 0;
 
 err_exit:
@@ -661,8 +729,8 @@ uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
 static int read_has_owner(bool *has_owner)
 {
 	struct tpm_rsp_getcap_ownerauth oauth;
-	int ret = get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_OWNER,
-				 &oauth.hdr, sizeof(oauth));
+	int ret = tpm12_get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_OWNER,
+				       &oauth.hdr, sizeof(oauth));
 	if (ret)
 		return -1;
 
@@ -932,8 +1000,8 @@ uint32_t tpm_get_maximum_cmd_size(void)
 	if (!tpm_is_working())
 		return 0;
 
-	ret = get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_INPUT_BUFFER,
-	                     &trgb.hdr, sizeof(trgb));
+	ret = tpm12_get_capability(TPM_CAP_PROPERTY, TPM_CAP_PROP_INPUT_BUFFER,
+	                           &trgb.hdr, sizeof(trgb));
 	if (ret)
 		return 0;
 
