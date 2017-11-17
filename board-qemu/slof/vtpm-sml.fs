@@ -363,10 +363,19 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: vtpm20-menu
+    tpm-is-working IF
+        tpm20-menu
+    THEN
+;
+
 : vtpm-menu
     tpm-get-tpm-version CASE
     1 OF
         vtpm12-menu
+      ENDOF
+    2 OF
+        vtpm20-menu
       ENDOF
     ENDCASE
 ;

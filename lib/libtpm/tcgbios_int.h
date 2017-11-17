@@ -270,6 +270,12 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM2_ALG_SHA512             0x000d
 #define TPM2_ALG_SM3_256            0x0012
 
+#define TPM2_ALG_SHA1_FLAG          (1 << 0)
+#define TPM2_ALG_SHA256_FLAG        (1 << 1)
+#define TPM2_ALG_SHA384_FLAG        (1 << 2)
+#define TPM2_ALG_SHA512_FLAG        (1 << 3)
+#define TPM2_ALG_SM3_256_FLAG       (1 << 4)
+
 /* TPM 2 command tags */
 #define TPM2_ST_NO_SESSIONS         0x8001
 #define TPM2_ST_SESSIONS            0x8002
@@ -278,9 +284,14 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM2_CC_HierarchyControl    0x121
 #define TPM2_CC_Clear               0x126
 #define TPM2_CC_ClearControl        0x127
+#define TPM2_CC_HierarchyChangeAuth 0x129
+#define TPM2_CC_PCR_Allocate        0x12b
 #define TPM2_CC_SelfTest            0x143
 #define TPM2_CC_Startup             0x144
+#define TPM2_CC_Shutdown            0x145
+#define TPM2_CC_StirRandom          0x146
 #define TPM2_CC_GetCapability       0x17a
+#define TPM2_CC_GetRandom           0x17b
 #define TPM2_CC_PCR_Extend          0x182
 
 /* TPM 2 Capabilities */
@@ -288,11 +299,40 @@ struct tpm_rsp_getcap_buffersize {
 
 /* TPM 2 data structures */
 
+struct tpm2_req_stirrandom {
+	struct tpm_req_header hdr;
+	uint16_t size;
+	uint64_t stir;
+} __attribute__((packed));
+
+struct tpm2_req_getrandom {
+	struct tpm_req_header hdr;
+	uint16_t bytesRequested;
+} __attribute__((packed));
+
+struct tpm2b_20 {
+	uint16_t size;
+	uint8_t buffer[20];
+} __attribute__((packed));
+
+struct tpm2_res_getrandom {
+	struct tpm_rsp_header hdr;
+	struct tpm2b_20 rnd;
+} __attribute__((packed));
+
 struct tpm2_authblock {
 	uint32_t handle;
 	uint16_t noncesize;  /* always 0 */
 	uint8_t contsession; /* always TPM2_YES */
 	uint16_t pwdsize;    /* always 0 */
+} __attribute__((packed));
+
+struct tpm2_req_hierarchychangeauth {
+	struct tpm_req_header hdr;
+	uint32_t authhandle;
+	uint32_t authblocksize;
+	struct tpm2_authblock authblock;
+	struct tpm2b_20 newAuth;
 } __attribute__((packed));
 
 struct tpm2_req_extend {
@@ -339,6 +379,15 @@ struct tpm2_res_getcapability {
 	uint8_t moreData;
 	uint32_t capability;
 	uint8_t data[0]; /* capability dependent data */
+} __attribute__((packed));
+
+struct tpm2_req_pcr_allocate {
+	struct tpm_req_header hdr;
+	uint32_t authhandle;
+	uint32_t authblocksize;
+	struct tpm2_authblock authblock;
+	uint32_t count;
+	uint8_t tpms_pcr_selections[4];
 } __attribute__((packed));
 
 struct tpms_pcr_selection {
