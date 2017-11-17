@@ -201,7 +201,7 @@ log-base LOG-SIZE tpm-set-log-parameters
 \ - clearing ownership can be done even if the TPM is deactivated and disabled
 \ - allowing/preventing owner installation requires an enabled and active TPM
 \
-: menu-show ( -- )
+: tpm12-menu-show ( -- )
     tpm-is-working IF
         ." The TPM is "
 
@@ -293,23 +293,23 @@ log-base LOG-SIZE tpm-set-log-parameters
 \ wait for keyboard input and have the C-driver
 \ process opcodes we derive from the chosen menu
 \ item
-: vtpm-menu
+: vtpm12-menu
     tpm-is-working IF
         \ vtpm-empty-keybuffer
-        menu-show
+        tpm12-menu-show
         BEGIN
             0 \ loop end-flag                                           ( 0 )
             key CASE
             [char] e OF  tpm-get-state                                  ( 0 flags )
                          TPM_ST_ENABLED AND TPM_ST_ENABLED <> IF
                              0 PPI_OP_ENABLE     process-opcode
-                             menu-show
+                             tpm12-menu-show
                          THEN
                      ENDOF
             [char] d OF  tpm-get-state                                  ( 0 flags )
                          TPM_ST_ENABLED AND TPM_ST_ENABLED = IF
                              0 PPI_OP_DISABLE    process-opcode
-                             menu-show
+                             tpm12-menu-show
                          THEN
                      ENDOF
             [char] a OF  tpm-get-state                                  ( 0 flags )
@@ -326,13 +326,13 @@ log-base LOG-SIZE tpm-set-log-parameters
             [char] v OF  tpm-get-state                                  ( 0 flags )
                          TPM_ST_ACTIVE AND TPM_ST_ACTIVE = IF
                              0 PPI_OP_DEACTIVATE process-opcode
-                             menu-show
+                             tpm12-menu-show
                          THEN
                      ENDOF
             [char] c OF  tpm-get-state                                  ( 0 flags )
                          TPM_ST_OWNED AND TPM_ST_OWNED = IF
                              0 PPI_OP_CLEAR      process-opcode
-                             menu-show
+                             tpm12-menu-show
                          THEN
                      ENDOF
             [char] s OF  tpm-get-state                                  ( 0 flags )
@@ -341,7 +341,7 @@ log-base LOG-SIZE tpm-set-log-parameters
                          dup is-enabled-active? IF
                              TPM_ST_OWNERINSTALL AND TPM_ST_OWNERINSTALL <> IF
                                  0 PPI_OP_SETOWNERINSTALL_TRUE  process-opcode
-                                 menu-show
+                                 tpm12-menu-show
                              THEN
                          THEN
                      ENDOF
@@ -351,7 +351,7 @@ log-base LOG-SIZE tpm-set-log-parameters
                          dup is-enabled-active? IF
                              TPM_ST_OWNERINSTALL AND TPM_ST_OWNERINSTALL = IF
                                  0 PPI_OP_SETOWNERINSTALL_FALSE process-opcode
-                                 menu-show
+                                 tpm12-menu-show
                              THEN
                          THEN
                      ENDOF
@@ -361,6 +361,14 @@ log-base LOG-SIZE tpm-set-log-parameters
             ENDCASE
         UNTIL
     THEN
+;
+
+: vtpm-menu
+  tpm-get-tpm-version CASE
+  1 OF
+      vtpm12-menu
+    ENDOF
+  ENDCASE
 ;
 
 : open  true ;
