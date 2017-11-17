@@ -199,8 +199,35 @@ struct tpm_rsp_getcap_buffersize {
  * TPM v2.0 hardware commands
  ****************************************************************/
 
+#define TPM2_NO                     0
+#define TPM2_YES                    1
+
+#define TPM2_RH_OWNER               0x40000001
+#define TPM2_RS_PW                  0x40000009
+#define TPM2_RH_ENDORSEMENT         0x4000000b
+#define TPM2_RH_PLATFORM            0x4000000c
+
 /* TPM 2 command tags */
 #define TPM2_ST_NO_SESSIONS         0x8001
 #define TPM2_ST_SESSIONS            0x8002
+
+/* TPM 2 commands */
+#define TPM2_CC_HierarchyControl    0x121
+
+struct tpm2_authblock {
+	uint32_t handle;
+	uint16_t noncesize;  /* always 0 */
+	uint8_t contsession; /* always TPM2_YES */
+	uint16_t pwdsize;    /* always 0 */
+} __attribute__((packed));
+
+struct tpm2_req_hierarchycontrol {
+	struct tpm_req_header hdr;
+	uint32_t authhandle;
+	uint32_t authblocksize;
+	struct tpm2_authblock authblock;
+	uint32_t enable;
+	uint8_t state;
+} __attribute__((packed));
 
 #endif /* TCGBIOS_INT_H */
