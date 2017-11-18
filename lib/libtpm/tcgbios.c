@@ -19,6 +19,7 @@
  */
 
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "types.h"
 #include "byteorder.h"
@@ -511,6 +512,88 @@ static int tpm_extend(struct tpm_log_entry *le, int digest_len)
 	return -1;
 }
 
+static int tpm20_stirrandom(void)
+{
+	struct tpm2_req_stirrandom stir = {
+		.hdr.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
+		.hdr.totlen = cpu_to_be32(sizeof(stir)),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_StirRandom),
+		.size = cpu_to_be16(sizeof(stir.stir)),
+		.stir = rand(),
+	};
+	struct tpm_rsp_header rsp;
+	uint32_t resp_length = sizeof(rsp);
+	int ret = tpmhw_transmit(0, &stir.hdr, &rsp, &resp_length,
+				 TPM_DURATION_TYPE_SHORT);
+	if (ret || resp_length != sizeof(rsp) || rsp.errcode)
+		ret = -1;
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_StirRandom = 0x%08x\n",
+		ret);
+
+	return ret;
+}
+
+static int tpm20_getrandom(uint8_t *buf, uint16_t buf_len)
+{
+	struct tpm2_res_getrandom rsp;
+	struct tpm2_req_getrandom trgr = {
+		.hdr.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
+		.hdr.totlen = cpu_to_be32(sizeof(trgr)),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_GetRandom),
+		.bytesRequested = cpu_to_be16(buf_len),
+	};
+	uint32_t resp_length = sizeof(rsp);
+
+	if (buf_len > sizeof(rsp.rnd.buffer))
+		return -1;
+
+	int ret = tpmhw_transmit(0, &trgr.hdr, &rsp, &resp_length,
+				 TPM_DURATION_TYPE_MEDIUM);
+	if (ret || resp_length != sizeof(rsp) || rsp.hdr.errcode)
+		ret = -1;
+	else
+		memcpy(buf, rsp.rnd.buffer, buf_len);
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_GetRandom = 0x%08x\n",
+		ret);
+
+	return ret;
+}
+
+static int tpm20_hierarchychangeauth(uint8_t auth[20])
+{
+	struct tpm2_req_hierarchychangeauth trhca = {
+		.hdr.tag = cpu_to_be16(TPM2_ST_SESSIONS),
+		.hdr.totlen = cpu_to_be32(sizeof(trhca)),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_HierarchyChangeAuth),
+		.authhandle = cpu_to_be32(TPM2_RH_PLATFORM),
+		.authblocksize = cpu_to_be32(sizeof(trhca.authblock)),
+		.authblock = {
+			.handle = cpu_to_be32(TPM2_RS_PW),
+			.noncesize = cpu_to_be16(0),
+			.contsession = TPM2_YES,
+			.pwdsize = cpu_to_be16(0),
+		},
+		.newAuth = {
+			.size = cpu_to_be16(sizeof(trhca.newAuth.buffer)),
+		},
+	};
+	memcpy(trhca.newAuth.buffer, auth, sizeof(trhca.newAuth.buffer));
+
+	struct tpm_rsp_header rsp;
+	uint32_t resp_length = sizeof(rsp);
+	int ret = tpmhw_transmit(0, &trhca.hdr, &rsp, &resp_length,
+				 TPM_DURATION_TYPE_MEDIUM);
+	if (ret || resp_length != sizeof(rsp) || rsp.errcode)
+		ret = -1;
+
+	dprintf("TCGBIOS: Return value from sending TPM2_CC_HierarchyChangeAuth = 0x%08x\n",
+		ret);
+
+	return ret;
+}
+
 static int tpm20_hierarchycontrol(uint32_t hierarchy, uint8_t state)
 {
 	/* we will try to deactivate the TPM now - ignoring all errors */
@@ -841,6 +924,29 @@ void tpm_finalize(void)
 	spapr_vtpm_finalize();
 }
 
+static void tpm20_prepboot(void)
+{
+	uint8_t auth[20];
+	int ret = tpm20_stirrandom();
+	if (ret)
+		 goto err_exit;
+
+	ret = tpm20_getrandom(&auth[0], sizeof(auth));
+	if (ret)
+		goto err_exit;
+
+	ret = tpm20_hierarchychangeauth(auth);
+	if (ret)
+		goto err_exit;
+
+	return;
+
+err_exit:
+	dprintf("TCGBIOS: TPM malfunctioning (line %d).\n", __LINE__);
+
+	tpm_set_failure();
+}
+
 /*
  * Give up physical presence; this function has to be called before
  * the firmware transitions to the boot loader.
@@ -854,6 +960,8 @@ uint32_t tpm_unassert_physical_presence(void)
 				       2, TPM_PP_NOT_PRESENT_LOCK,
 				       TPM_DURATION_TYPE_SHORT);
 	break;
+	case TPM_VERSION_2:
+		tpm20_prepboot();
 	}
 
 	return 0;
