@@ -278,9 +278,12 @@ struct tpm_rsp_getcap_buffersize {
 #define TPM2_CC_HierarchyControl    0x121
 #define TPM2_CC_Clear               0x126
 #define TPM2_CC_ClearControl        0x127
+#define TPM2_CC_HierarchyChangeAuth 0x129
 #define TPM2_CC_SelfTest            0x143
 #define TPM2_CC_Startup             0x144
+#define TPM2_CC_StirRandom          0x146
 #define TPM2_CC_GetCapability       0x17a
+#define TPM2_CC_GetRandom           0x17b
 #define TPM2_CC_PCR_Extend          0x182
 
 /* TPM 2 Capabilities */
@@ -288,11 +291,40 @@ struct tpm_rsp_getcap_buffersize {
 
 /* TPM 2 data structures */
 
+struct tpm2_req_stirrandom {
+	struct tpm_req_header hdr;
+	uint16_t size;
+	uint64_t stir;
+} __attribute__((packed));
+
+struct tpm2_req_getrandom {
+	struct tpm_req_header hdr;
+	uint16_t bytesRequested;
+} __attribute__((packed));
+
+struct tpm2b_20 {
+	uint16_t size;
+	uint8_t buffer[20];
+} __attribute__((packed));
+
+struct tpm2_res_getrandom {
+	struct tpm_rsp_header hdr;
+	struct tpm2b_20 rnd;
+} __attribute__((packed));
+
 struct tpm2_authblock {
 	uint32_t handle;
 	uint16_t noncesize;  /* always 0 */
 	uint8_t contsession; /* always TPM2_YES */
 	uint16_t pwdsize;    /* always 0 */
+} __attribute__((packed));
+
+struct tpm2_req_hierarchychangeauth {
+	struct tpm_req_header hdr;
+	uint32_t authhandle;
+	uint32_t authblocksize;
+	struct tpm2_authblock authblock;
+	struct tpm2b_20 newAuth;
 } __attribute__((packed));
 
 struct tpm2_req_extend {
