@@ -160,6 +160,16 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: measure-gpt ( addr size -- )
+    4 5 separator-event
+    tpm-measure-gpt                            ( errcode )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-measure-gpt: " . cr
+    ELSE
+        drop
+    THEN
+;
+
 : unassert-physical-presence ( -- )
     tpm-unassert-physical-presence                    ( errcode )
     dup 0<> IF

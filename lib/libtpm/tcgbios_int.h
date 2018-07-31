@@ -65,6 +65,9 @@
 #define EV_IPL                          13
 #define EV_IPL_PARTITION_DATA           14
 
+#define EV_EFI_EVENT_BASE       0x80000000
+#define EV_EFI_GPT_EVENT        (EV_EFI_EVENT_BASE + 0x6)
+
 #define SHA1_BUFSIZE                    20
 #define SHA256_BUFSIZE                  32
 #define SHA384_BUFSIZE                  48
@@ -400,5 +403,16 @@ struct tpml_pcr_selection {
 	uint32_t count;
 	struct tpms_pcr_selection selections[0];
 } __attribute__((packed));
+
+
+/* EFI related data structures */
+typedef struct {
+#if 0
+    EFI_PARTITION_TABLE_HEADER EfiPartitionHeader;
+    UINTN                      NumberOfPartitions;
+    EFI_PARTITION_ENTRY        Partitions [1];
+#endif
+    uint8_t dummy;
+} __attribute__((packed)) EFI_GPT_DATA;
 
 #endif /* TCGBIOS_INT_H */

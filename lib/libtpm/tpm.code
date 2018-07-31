@@ -233,3 +233,14 @@ PRIM(tpm20_X2d_menu_X2d_change_X2d_active_X2d_pcrbanks)
 	PUSH;
 	TOS.n = tpm20_menu_change_active_pcrbanks();
 MIRP
+
+/*************************************************************************/
+/* Measure and log GPT EVENT                                             */
+/* SLOF:   tpm-measure-gpt  ( addr length -- errcode )                   */
+/* LIBTPM: errcode = tpm_measure_gpt(addr, length)                       */
+/*************************************************************************/
+PRIM(tpm_X2d_measure_X2d_gpt)
+	int length = TOS.u; POP;
+	void *addr = TOS.a;
+	TOS.n = tpm_measure_gpt(addr, length);
+MIRP
