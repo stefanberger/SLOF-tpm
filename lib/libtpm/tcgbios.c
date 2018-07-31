@@ -61,6 +61,11 @@ struct tpm_state {
 
 static struct tpm_state tpm_state;
 
+static const uint8_t ZeroGuid[16] = { 0 };
+
+static EFI_GPT_DATA *efi_gpt_data;
+static size_t efi_gpt_data_size;
+
 /*
  * TPM 2 logs are written in little endian format.
  */
@@ -891,6 +896,88 @@ uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
 	return tpm_add_measurement_to_log(5, EV_IPL_PARTITION_DATA,
 					  string, strlen(string),
 					  addr + 0x1b8, 0x48);
+}
+
+/*
+ * This is the first function to call when measuring a GPT table.
+ * It allocates memory for the data to log and measure.
+ */
+void tpm_gpt_set_lba1(const uint8_t *addr, uint32_t length)
+{
+	if (!tpm_is_working())
+		return;
+
+	SLOF_free_mem(efi_gpt_data, efi_gpt_data_size);
+
+	efi_gpt_data_size = sizeof(EFI_GPT_DATA);
+	efi_gpt_data = SLOF_alloc_mem(efi_gpt_data_size);
+	if (!efi_gpt_data)
+		return;
+
+	memcpy(&efi_gpt_data->EfiPartitionHeader,
+	       addr, sizeof(efi_gpt_data->EfiPartitionHeader));
+	efi_gpt_data->NumberOfPartitions = 0;
+}
+
+/*
+ * This function adds a GPT entry to the data to measure. It must
+ * be called after tpm_gpt_set_lba1.
+ */
+void tpm_gpt_add_entry(const uint8_t *addr, uint32_t length)
+{
+	size_t sz;
+	EFI_PARTITION_ENTRY *epe = (void *)addr;
+	void *tmp;
+
+	if (!tpm_is_working() ||
+	    !efi_gpt_data ||
+	    length < sizeof(*epe) ||
+	    !memcmp(epe->partTypeGuid, ZeroGuid, sizeof(ZeroGuid)))
+		return;
+
+	sz = offset_of(EFI_GPT_DATA, Partitions) +
+	     (efi_gpt_data->NumberOfPartitions + 1) * sizeof(EFI_PARTITION_ENTRY);
+	if (sz > efi_gpt_data_size) {
+		tmp = SLOF_alloc_mem(sz);
+		if (!tmp)
+			goto err_no_mem;
+
+		memcpy(tmp, efi_gpt_data, efi_gpt_data_size);
+		SLOF_free_mem(efi_gpt_data, efi_gpt_data_size);
+		efi_gpt_data = tmp;
+		efi_gpt_data_size = sz;
+
+	}
+	memcpy(&efi_gpt_data->Partitions[efi_gpt_data->NumberOfPartitions],
+	       addr,
+	       sizeof(EFI_PARTITION_ENTRY));
+	efi_gpt_data->NumberOfPartitions++;
+
+	return;
+
+err_no_mem:
+	SLOF_free_mem(efi_gpt_data, efi_gpt_data_size);
+	efi_gpt_data_size = 0;
+	efi_gpt_data = NULL;
+}
+
+/*
+ * tpm_measure_gpt finally measures the GPT table and adds an entry
+ * to the log.
+ */
+uint32_t tpm_measure_gpt(void)
+{
+	size_t sz;
+
+	if (!tpm_is_working())
+		return TCGBIOS_GENERAL_ERROR;
+
+	sz = offset_of(EFI_GPT_DATA, Partitions) +
+	     efi_gpt_data->NumberOfPartitions * sizeof(EFI_PARTITION_ENTRY);
+
+	return tpm_add_measurement_to_log(5, EV_EFI_GPT_EVENT,
+					  (const char *)efi_gpt_data, sz,
+					  (const uint8_t *)efi_gpt_data, sz);
 }
 
 uint32_t tpm_measure_scrtm(void)

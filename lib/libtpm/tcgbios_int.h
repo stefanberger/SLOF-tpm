@@ -36,6 +36,9 @@
 #define EV_IPL                          13
 #define EV_IPL_PARTITION_DATA           14
 
+#define EV_EFI_EVENT_BASE               0x80000000
+#define EV_EFI_GPT_EVENT                (EV_EFI_EVENT_BASE + 0x6)
+
 #define SHA1_BUFSIZE                    20
 #define SHA256_BUFSIZE                  32
 #define SHA384_BUFSIZE                  48
@@ -266,5 +269,44 @@ struct tpml_pcr_selection {
 	uint32_t count;
 	struct tpms_pcr_selection selections[0];
 } __attribute__((packed));
+
+
+/* EFI related data structures */
+typedef struct {
+	uint64_t signature;
+	uint32_t revision;
+	uint32_t size;
+	uint32_t crc32;
+	uint8_t reserved[4];
+} __attribute__((packed)) EFI_TABLE_HEADER;
+
+typedef struct {
+	EFI_TABLE_HEADER header;
+	uint64_t currentLba;
+	uint64_t backupLba;
+	uint64_t firstLba;
+	uint64_t lastLba;
+	uint8_t  diskGuid[16];
+	uint64_t partEntryLba;
+	uint32_t numPartEntry;
+	uint32_t partEntrySize;
+	uint32_t partArrayCrc32;
+	uint8_t reserved[420];
+} __attribute__((packed)) EFI_PARTITION_TABLE_HEADER;
+
+typedef struct {
+	uint8_t partTypeGuid[16];
+	uint8_t partGuid[16];
+	uint64_t firstLba;
+	uint64_t lastLba;
+	uint64_t attribute;
+	uint8_t partName[72];
+} __attribute__((packed)) EFI_PARTITION_ENTRY;
+
+typedef struct {
+    EFI_PARTITION_TABLE_HEADER EfiPartitionHeader;
+    uint64_t                   NumberOfPartitions;
+    EFI_PARTITION_ENTRY        Partitions[0];
+} __attribute__((packed)) EFI_GPT_DATA;
 
 #endif /* TCGBIOS_INT_H */
