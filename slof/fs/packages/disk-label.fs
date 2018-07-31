@@ -549,6 +549,7 @@ B9E5                CONSTANT GPT-BASIC-DATA-PARTITION-2
 
 \ load from a bootable partition
 : load-from-boot-partition ( addr -- size )
+   ." enter load-from-boot-partition:" .s cr
    debug-disk-label? IF ." Trying DOS boot " .s cr THEN
    dup load-from-dos-boot-partition ?dup 0 <> IF
       nip
@@ -566,7 +567,17 @@ B9E5                CONSTANT GPT-BASIC-DATA-PARTITION-2
    0 disk-chrp-boot !
 
    debug-disk-label? IF ." Trying GPT boot " .s cr THEN
-   load-from-gpt-prep-partition
+   dup load-from-gpt-prep-partition ?dup 0 <> IF
+      dup -rot
+      s" /ibm,vtpm" find-node dup IF
+         ." before measure-gpt: " .s cr
+         s" measure-gpt" rot $call-static
+         ." after measure-gpt: " .s cr
+      ELSE
+         3drop
+         ." after drop: " .s cr
+      THEN
+   THEN
    \ More boot partition formats ...
 ;
 
