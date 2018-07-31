@@ -1352,6 +1352,19 @@ uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
 					  addr + 0x1b8, 0x48);
 }
 
+uint32_t tpm_measure_gpt(const uint8_t *addr, uint32_t length)
+{
+	EFI_GPT_DATA egd;
+
+	if (!tpm_is_working())
+		return TCGBIOS_GENERAL_ERROR;
+
+	printf("addr=%p, length=%x\n",addr,length);
+	return tpm_add_measurement_to_log(4, EV_EFI_GPT_EVENT,
+					  (const char *)&egd, sizeof(egd),
+					  addr, length);
+}
+
 /****************************************************************
  * TPM Configuration Menu
  ****************************************************************/
