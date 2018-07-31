@@ -32,6 +32,7 @@ bool tpm_log_event(struct pcpes *pcpes);
 uint32_t tpm_hash_all(const void *data, uint32_t datalen, void *hashptr);
 uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,
                              uint32_t length);
+uint32_t tpm_measure_gpt(const uint8_t *addr, uint32_t length);
 uint32_t tpm_add_event_separators(uint32_t start_pcr, uint32_t end_pcr);
 uint32_t tpm_process_opcode(uint8_t op, bool verbose);
 uint32_t tpm_get_maximum_cmd_size(void);

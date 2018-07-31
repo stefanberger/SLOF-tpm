@@ -223,3 +223,14 @@ PRIM(tpm_X2d_get_X2d_tpm_X2d_version)
 	PUSH;
 	TOS.n = tpm_get_tpm_version();
 MIRP
+
+/*************************************************************************/
+/* Measure and log GPT EVENT                                             */
+/* SLOF:   tpm-measure-gpt  ( addr length -- errcode )                   */
+/* LIBTPM: errcode = tpm_measure_gpt(addr, length)                       */
+/*************************************************************************/
+PRIM(tpm_X2d_measure_X2d_gpt)
+	int length = TOS.u; POP;
+	void *addr = TOS.a;
+	TOS.n = tpm_measure_gpt(addr, length);
+MIRP
