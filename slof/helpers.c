@@ -230,3 +230,14 @@ unsigned long SLOF_get_vtpm_unit(void)
 	forth_eval("vtpm-unit");
 	return forth_pop();
 }
+
+int SLOF_get_keystroke(void)
+{
+	forth_eval("key");
+	return forth_pop();
+}
+
+void SLOF_reset(void)
+{
+	forth_eval("reset-all");
+}

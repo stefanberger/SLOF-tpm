@@ -97,23 +97,36 @@ struct tpm_log_entry {
 
 static const struct hash_parameters {
 	uint16_t hashalg;
+	uint8_t  hashalg_flag;
 	uint8_t  hash_buffersize;
+	const char *name;
 } hash_parameters[] = {
 	{
 		.hashalg = TPM2_ALG_SHA1,
+		.hashalg_flag = TPM2_ALG_SHA1_FLAG,
 		.hash_buffersize = SHA1_BUFSIZE,
+		.name = "SHA1",
 	}, {
 		.hashalg = TPM2_ALG_SHA256,
+		.hashalg_flag = TPM2_ALG_SHA256_FLAG,
 		.hash_buffersize = SHA256_BUFSIZE,
+		.name = "SHA256",
 	}, {
 		.hashalg = TPM2_ALG_SHA384,
+		.hashalg_flag = TPM2_ALG_SHA384_FLAG,
 		.hash_buffersize = SHA384_BUFSIZE,
+		.name = "SHA384",
+
 	}, {
 		.hashalg = TPM2_ALG_SHA512,
+		.hashalg_flag = TPM2_ALG_SHA512_FLAG,
 		.hash_buffersize = SHA512_BUFSIZE,
+		.name = "SHA512",
 	}, {
 		.hashalg = TPM2_ALG_SM3_256,
+		.hashalg_flag = TPM2_ALG_SM3_256_FLAG,
 		.hash_buffersize = SM3_256_BUFSIZE,
+		.name = "SM3-256",
 	}
 };
 
@@ -127,6 +140,42 @@ tpm20_get_hash_buffersize(uint16_t hashAlg)
 			return hash_parameters[i].hash_buffersize;
 	}
 	return -1;
+}
+
+static uint8_t
+tpm20_hashalg_to_flag(uint16_t hashAlg)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(hash_parameters); i++) {
+		if (hash_parameters[i].hashalg == hashAlg)
+			return hash_parameters[i].hashalg_flag;
+	}
+	return 0;
+}
+
+static uint16_t
+tpm20_hashalg_flag_to_hashalg(uint8_t hashalg_flag)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(hash_parameters); i++) {
+		if (hash_parameters[i].hashalg_flag == hashalg_flag)
+			return hash_parameters[i].hashalg;
+	}
+	return 0;
+}
+
+static const char *
+tpm20_hashalg_flag_to_name(uint8_t hashalg_flag)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(hash_parameters); i++) {
+		if (hash_parameters[i].hashalg_flag == hashalg_flag)
+			return hash_parameters[i].name;
+	}
+	return NULL;
 }
 
 /*
@@ -336,6 +385,116 @@ tpm20_get_pcrbanks(void)
 		ret = -1;
 	}
 
+	return ret;
+}
+
+static int
+tpm20_get_suppt_pcrbanks(uint8_t *suppt_pcrbanks, uint8_t *active_pcrbanks)
+{
+	*suppt_pcrbanks = 0;
+	*active_pcrbanks = 0;
+
+	if (!tpm20_pcr_selection)
+		return -1;
+
+	struct tpms_pcr_selection *sel = tpm20_pcr_selection->selections;
+	void *end = (void*)tpm20_pcr_selection + tpm20_pcr_selection_size;
+
+	while (1) {
+		uint8_t sizeOfSelect = sel->sizeOfSelect;
+		void *nsel = (void*)sel + sizeof(*sel) + sizeOfSelect;
+		if (nsel > end)
+			return 0;
+
+		uint16_t hashalg = be16_to_cpu(sel->hashAlg);
+		uint8_t hashalg_flag = tpm20_hashalg_to_flag(hashalg);
+
+		*suppt_pcrbanks |= hashalg_flag;
+
+		unsigned i;
+		for (i = 0; i < sizeOfSelect; i++) {
+			if (sel->pcrSelect[i]) {
+				*active_pcrbanks |= hashalg_flag;
+				break;
+			}
+		}
+
+		sel = nsel;
+	}
+}
+
+static int
+tpm20_set_pcrbanks(uint32_t active_banks)
+{
+	struct tpm2_req_pcr_allocate trpa = {
+		.hdr.tag = cpu_to_be16(TPM2_ST_SESSIONS),
+		.hdr.ordinal = cpu_to_be32(TPM2_CC_PCR_Allocate),
+		.authhandle = cpu_to_be32(TPM2_RH_PLATFORM),
+		.authblocksize = cpu_to_be32(sizeof(trpa.authblock)),
+		.authblock = {
+			.handle = cpu_to_be32(TPM2_RS_PW),
+			.noncesize = cpu_to_be16(0),
+			.contsession = TPM2_YES,
+			.pwdsize = cpu_to_be16(0),
+		},
+	};
+	struct tpms_pcr_selection3 {
+		uint16_t hashAlg;
+		uint8_t sizeOfSelect;
+		uint8_t pcrSelect[3];
+	} tps[ARRAY_SIZE(trpa.tpms_pcr_selections)];
+	int i = 0;
+	uint8_t hashalg_flag = TPM2_ALG_SHA1_FLAG;
+	uint8_t dontcare, suppt_banks;
+
+	tpm20_get_suppt_pcrbanks(&suppt_banks, &dontcare);
+
+	while (hashalg_flag) {
+		if ((hashalg_flag & suppt_banks)) {
+			uint16_t hashalg = tpm20_hashalg_flag_to_hashalg(hashalg_flag);
+
+			if (hashalg) {
+				uint8_t mask = 0;
+
+				tps[i].hashAlg = cpu_to_be16(hashalg);
+				tps[i].sizeOfSelect = 3;
+
+				if (active_banks & hashalg_flag)
+					mask = 0xff;
+
+				tps[i].pcrSelect[0] = mask;
+				tps[i].pcrSelect[1] = mask;
+				tps[i].pcrSelect[2] = mask;
+				i++;
+			}
+		}
+		hashalg_flag <<= 1;
+	}
+
+	trpa.count = cpu_to_be32(i);
+	memcpy(trpa.tpms_pcr_selections, tps, i * sizeof(tps[0]));
+	trpa.hdr.totlen = cpu_to_be32(offset_of(struct tpm2_req_pcr_allocate,
+						tpms_pcr_selections) +
+				      i * sizeof(tps[0]));
+
+	struct tpm_rsp_header rsp;
+	uint32_t resp_length = sizeof(rsp);
+
+	int ret = tpmhw_transmit(0, &trpa.hdr, &rsp, &resp_length,
+				 TPM_DURATION_TYPE_SHORT);
+	ret = ret ? -1 : be32_to_cpu(rsp.errcode);
+
+	return ret;
+}
+
+static int tpm20_activate_pcrbanks(uint32_t active_banks)
+{
+	int ret = tpm20_set_pcrbanks(active_banks);
+	if (!ret)
+		ret = tpm_simple_cmd(0, TPM2_CC_Shutdown,
+				     2, TPM2_SU_CLEAR, TPM_DURATION_TYPE_SHORT);
+	if (!ret)
+		SLOF_reset();
 	return ret;
 }
 
@@ -1625,4 +1784,65 @@ void tpm_driver_set_failure_reason(uint32_t errcode)
 uint32_t tpm_get_tpm_version(void)
 {
 	return TPM_version;
+}
+
+int tpm20_menu_change_active_pcrbanks(void)
+{
+	uint8_t active_banks, suppt_banks;
+
+	tpm20_get_suppt_pcrbanks(&suppt_banks, &active_banks);
+
+	uint8_t activate_banks = active_banks;
+
+	while (1) {
+		uint8_t hashalg_flag = TPM2_ALG_SHA1_FLAG;
+		uint8_t i = 0;
+
+		printf("\nToggle active PCR banks by pressing number key\n\n");
+
+		while (hashalg_flag) {
+			uint8_t flag = hashalg_flag & suppt_banks;
+			const char *hashname = tpm20_hashalg_flag_to_name(flag);
+
+			i++;
+			if (hashname) {
+				printf("  %d: %s", i, hashname);
+				if (activate_banks & hashalg_flag)
+					printf(" (enabled)");
+				printf("\n");
+			}
+
+			hashalg_flag <<= 1;
+		}
+		printf("\n"
+		       "ESC: return to previous menu without changes\n");
+		if (activate_banks)
+			printf("A  : activate selection\n");
+
+		uint8_t flagnum;
+		int show = 0;
+		while (!show) {
+			int key = SLOF_get_keystroke();
+
+			switch (key) {
+			case ~0:
+				continue;
+			case 27: /* ESC */
+				printf("\n");
+				return -1;
+			case '1' ... '5': /* keys 1 .. 5 */
+				flagnum = key - 48;
+				if (flagnum > i)
+					continue;
+				if (suppt_banks & (1 << (flagnum - 1))) {
+					activate_banks ^= 1 << (flagnum - 1);
+					show = 1;
+				}
+				break;
+			case 'a': /* a */
+				if (activate_banks)
+					tpm20_activate_pcrbanks(activate_banks);
+			}
+		}
+	}
 }

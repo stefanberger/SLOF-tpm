@@ -223,3 +223,13 @@ PRIM(tpm_X2d_get_X2d_tpm_X2d_version)
 	PUSH;
 	TOS.n = tpm_get_tpm_version();
 MIRP
+
+/*************************************************************************/
+/* TPM 2.0 Menu for changing active PCR banks                            */
+/* SLOF:   tpm20-menu-change-active-pcrbanks  ( -- errcode )             */
+/* LIBTPM: errcode = tpm20_menu_change_active_pcrbanks(void)             */
+/*************************************************************************/
+PRIM(tpm20_X2d_menu_X2d_change_X2d_active_X2d_pcrbanks)
+	PUSH;
+	TOS.n = tpm20_menu_change_active_pcrbanks();
+MIRP

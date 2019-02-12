@@ -366,6 +366,7 @@ log-base LOG-SIZE tpm-set-log-parameters
 : tpm20-menu-show
     tpm-is-working IF
       ." c. Clear" cr
+      ." p. Change active PCR banks" cr
 
       cr
     ELSE
@@ -375,6 +376,8 @@ log-base LOG-SIZE tpm-set-log-parameters
     ." Press escape to continue boot." cr cr
 ;
 
+
+
 : vtpm20-menu
     tpm-is-working IF
         tpm20-menu-show
@@ -383,6 +386,11 @@ log-base LOG-SIZE tpm-set-log-parameters
             key CASE
             [char] c OF
                          0 PPI_OP_CLEAR process-opcode
+                         tpm20-menu-show
+                     ENDOF
+            [char] p OF
+                         tpm20-menu-change-active-pcrbanks
+                         drop
                          tpm20-menu-show
                      ENDOF
             1b       OF                                                 ( 0 )
