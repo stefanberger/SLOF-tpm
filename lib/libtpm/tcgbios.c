@@ -95,23 +95,38 @@ struct tpm_log_entry {
 	   + SHA512_BUFSIZE + SM3_256_BUFSIZE];
 } __attribute__((packed));
 
+static const struct hash_parameters {
+	uint16_t hashalg;
+	uint8_t  hash_buffersize;
+} hash_parameters[] = {
+	{
+		.hashalg = TPM2_ALG_SHA1,
+		.hash_buffersize = SHA1_BUFSIZE,
+	}, {
+		.hashalg = TPM2_ALG_SHA256,
+		.hash_buffersize = SHA256_BUFSIZE,
+	}, {
+		.hashalg = TPM2_ALG_SHA384,
+		.hash_buffersize = SHA384_BUFSIZE,
+	}, {
+		.hashalg = TPM2_ALG_SHA512,
+		.hash_buffersize = SHA512_BUFSIZE,
+	}, {
+		.hashalg = TPM2_ALG_SM3_256,
+		.hash_buffersize = SM3_256_BUFSIZE,
+	}
+};
+
 static int
 tpm20_get_hash_buffersize(uint16_t hashAlg)
 {
-	switch (hashAlg) {
-	case TPM2_ALG_SHA1:
-		return SHA1_BUFSIZE;
-	case TPM2_ALG_SHA256:
-		return SHA256_BUFSIZE;
-	case TPM2_ALG_SHA384:
-		return SHA384_BUFSIZE;
-	case TPM2_ALG_SHA512:
-		return SHA512_BUFSIZE;
-	case TPM2_ALG_SM3_256:
-		return SM3_256_BUFSIZE;
-	default:
-		return -1;
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(hash_parameters); i++) {
+		if (hash_parameters[i].hashalg == hashAlg)
+			return hash_parameters[i].hash_buffersize;
 	}
+	return -1;
 }
 
 /*
