@@ -234,3 +234,13 @@ PRIM(tpm_X2d_measure_X2d_gpt)
 	void *addr = TOS.a;
 	TOS.n = tpm_measure_gpt(addr, length);
 MIRP
+
+/*************************************************************************/
+/* TPM 2.0 Menu for changing active PCR banks                            */
+/* SLOF:   tpm20-menu-change-active-pcrbanks  ( -- errcode )             */
+/* LIBTPM: errcode = tpm20_menu_change_active_pcrbanks(void)             */
+/*************************************************************************/
+PRIM(tpm20_X2d_menu_X2d_change_X2d_active_X2d_pcrbanks)
+	PUSH;
+	TOS.n = tpm20_menu_change_active_pcrbanks();
+MIRP

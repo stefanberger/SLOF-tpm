@@ -41,6 +41,7 @@ uint32_t tpm_driver_get_state(void);
 uint32_t tpm_driver_get_failure_reason(void);
 void tpm_driver_set_failure_reason(uint32_t errcode);
 uint32_t tpm_get_tpm_version(void);
+int tpm20_menu_change_active_pcrbanks(void);
 
 /* flags returned by tpm_get_state */
 #define TPM_STATE_ENABLED        1
