@@ -49,5 +49,6 @@ extern int SLOF_get_keystroke(void);
 #define container_of(ptr, type, member) ({                      \
 			const typeof(((type *)0)->member)* struct_ptr = (ptr); \
 			(type *)((char *)struct_ptr - offset_of(type, member)); })
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 #endif
