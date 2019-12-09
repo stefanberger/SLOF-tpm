@@ -90,6 +90,9 @@ include fbuffer.fs
 	    2dup " IBM,vtpm" strequal IF
                 " vio-vtpm-cdriver.fs" included
 	    THEN
+	    2dup " IBM,vtpm20" strequal IF
+                " vio-vtpm-cdriver.fs" included
+	    THEN
             2drop
        THEN
        peer
