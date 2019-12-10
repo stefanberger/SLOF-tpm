@@ -62,6 +62,37 @@ typedef uint8_t tpm_ppi_op;
 
 #define TPM_version spapr_get_tpm_version()
 
+/*
+ * TPM 1.2 logs are written in big endian format and TPM 2 logs
+ * are written in little endian format.
+ */
+static inline uint32_t log32_to_cpu(uint32_t val)
+{
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return be32_to_cpu(val);
+	case TPM_VERSION_2:
+		return le32_to_cpu(val);
+	}
+	return 0;
+}
+
+static inline uint32_t cpu_to_log32(uint32_t val)
+{
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return cpu_to_be32(val);
+	case TPM_VERSION_2:
+		return cpu_to_le32(val);
+	}
+	return 0;
+}
+
+static inline bool tpm_log_is_be(void)
+{
+	return TPM_version == TPM_VERSION_1_2;
+}
+
 /********************************************************
   Extensions for TCG-enabled BIOS
  *******************************************************/
@@ -256,7 +287,7 @@ static uint32_t tpm_log_event_long(struct pcpes *pcpes,
 		return TCGBIOS_LOGOVERFLOW;
 	}
 
-	pcpes->eventdatasize = event_length;
+	pcpes->eventdatasize = cpu_to_log32(event_length);
 
 	memcpy(tpm_state.log_area_next_entry, pcpes,
 	       offset_of(struct pcpes, event));
@@ -271,7 +302,7 @@ static uint32_t tpm_log_event_long(struct pcpes *pcpes,
 bool tpm_log_event(struct pcpes *pcpes)
 {
 	const char *event = NULL;
-	uint32_t event_length = pcpes->eventdatasize;
+	uint32_t event_length = log32_to_cpu(pcpes->eventdatasize);
 
 	if (event_length)
 		event = (void *)pcpes + offset_of(struct pcpes, event);
@@ -411,13 +442,13 @@ static uint32_t hash_log_extend(struct pcpes *pcpes,
 {
 	int ret;
 
-	if (pcpes->pcrindex >= 24)
+	if (log32_to_cpu(pcpes->pcrindex) >= 24)
 		return TCGBIOS_INVALID_INPUT_PARA;
 	if (hashdata)
 		tpm_hash_all(hashdata, hashdata_length, pcpes->digest);
 
 	if (extend) {
-		ret = tpm_extend(pcpes->digest, pcpes->pcrindex);
+		ret = tpm_extend(pcpes->digest, log32_to_cpu(pcpes->pcrindex));
 		if (ret)
 			return TCGBIOS_COMMAND_ERROR;
 	}
@@ -448,8 +479,8 @@ static uint32_t tpm_add_measurement_to_log(uint32_t pcrindex,
 {
 	struct pcpes pcpes;
 
-	pcpes.pcrindex	= pcrindex;
-	pcpes.eventtype = eventtype;
+	pcpes.pcrindex	= cpu_to_log32(pcrindex);
+	pcpes.eventtype = cpu_to_log32(eventtype);
 	memset(&pcpes.digest, 0, sizeof(pcpes.digest));
 
 	return hash_log_extend(&pcpes, hashdata, hashdatalen,
@@ -462,7 +493,7 @@ static uint32_t tpm_add_measurement_to_log(uint32_t pcrindex,
 uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes)
 {
 	const char *event = NULL;
-	uint32_t event_length = pcpes->eventdatasize;
+	uint32_t event_length = log32_to_cpu(pcpes->eventdatasize);
 
 	if (!tpm_is_working())
 		return TCGBIOS_GENERAL_ERROR;
@@ -471,7 +502,8 @@ uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes)
 		event = (void *)pcpes + offset_of(struct pcpes, event);
 
 	return hash_log_extend(pcpes,
-			       &pcpes->event, pcpes->eventdatasize,
+			       &pcpes->event,
+			       log32_to_cpu(pcpes->eventdatasize),
 			       event, event_length, true);
 }
 
