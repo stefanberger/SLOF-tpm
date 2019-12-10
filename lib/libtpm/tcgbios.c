@@ -63,16 +63,34 @@ typedef uint8_t tpm_ppi_op;
 #define TPM_version spapr_get_tpm_version()
 
 /*
- * TPM 1.2 logs are written in big endian format.
+ * TPM 1.2 logs are written in big endian format and TPM 2 logs
+ * are written in little endian format.
  */
 static inline uint32_t log32_to_cpu(uint32_t val)
 {
-	return be32_to_cpu(val);
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return be32_to_cpu(val);
+	case TPM_VERSION_2:
+		return le32_to_cpu(val);
+	}
+	return 0;
 }
 
 static inline uint32_t cpu_to_log32(uint32_t val)
 {
-	return cpu_to_be32(val);
+	switch (TPM_version) {
+	case TPM_VERSION_1_2:
+		return cpu_to_be32(val);
+	case TPM_VERSION_2:
+		return cpu_to_le32(val);
+	}
+	return 0;
+}
+
+static inline bool tpm_log_is_be(void)
+{
+	return TPM_version == TPM_VERSION_1_2;
 }
 
 /********************************************************
