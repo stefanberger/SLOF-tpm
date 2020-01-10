@@ -58,6 +58,12 @@ s" ibm,vtpm" 2dup device-name device-type
     THEN
 ;
 
+: vtpm-menu
+    tpm-is-working IF
+        tpm20-menu
+    THEN
+;
+
 : open  true ;
 : close ;
 
