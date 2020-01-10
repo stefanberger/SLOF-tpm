@@ -116,6 +116,12 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: vtpm-menu
+    tpm-is-working IF
+        tpm20-menu
+    THEN
+;
+
 : open  true ;
 : close ;
 
