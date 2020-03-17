@@ -28,6 +28,9 @@ uint32_t tpm_measure_scrtm(void);
 void tpm_set_log_parameters(void *address, unsigned int size);
 uint32_t tpm_get_logsize(void);
 uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes);
+uint32_t tpm_hash_log_extend_event_raw(uint32_t pcrindex, uint32_t eventtype,
+                                       const void *data, uint32_t datalen,
+                                       const char *desc, uint32_t desclen);
 bool tpm_log_event(struct pcpes *pcpes);
 uint32_t tpm_hash_all(const void *data, uint32_t datalen, void *hashptr);
 uint32_t tpm_measure_bcv_mbr(uint32_t bootdrv, const uint8_t *addr,

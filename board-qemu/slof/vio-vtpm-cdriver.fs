@@ -139,6 +139,14 @@ false VALUE vtpm-debug?
 ;
 
 \ firmware API call
+: hash-log-extend-event2 ( pcr evt data-ptr data-len desc-ptr desc-len  -- rc )
+    " hash-log-extend-event2" vtpm-call-forward IF
+        3drop 3drop
+        9 \ TPM_FAIL
+    THEN
+;
+
+\ firmware API call
 : pass-through-to-tpm ( buf-addr buf-size -- response-size )
     " pass-through-to-tpm" vtpm-call-forward IF
         2drop

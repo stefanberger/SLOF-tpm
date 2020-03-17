@@ -1275,6 +1275,18 @@ uint32_t tpm_hash_log_extend_event(struct pcpes *pcpes)
 }
 
 /*
+ * tpm_hash_log_extend_event2: Function for interfacing with the firmware API
+ */
+uint32_t tpm_hash_log_extend_event_raw(uint32_t pcrindex, uint32_t eventtype,
+				       const void *data, uint32_t datalen,
+				       const char *desc, uint32_t desclen)
+{
+	return tpm_add_measurement_to_log(pcrindex, eventtype,
+					  desc, desclen,
+					  data, datalen);
+}
+
+/*
  * Add an EV_ACTION measurement to the list of measurements
  */
 static uint32_t tpm_add_action(uint32_t pcrIndex, const char *string)

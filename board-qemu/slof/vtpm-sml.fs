@@ -105,6 +105,16 @@ log-base LOG-SIZE tpm-set-log-parameters
     THEN
 ;
 
+: hash-log-extend-event2 ( pcr evt data-ptr date-len descptr desc-len -- rc )
+    vtpm-debug? IF
+        ." Call to hash-log-extend-event2" cr
+    THEN
+    tpm-hash-log-extend-event-raw                  ( rc )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-hash-log-extend-event2: " dup . cr
+    THEN
+;
+
 : get-maximum-cmd-size ( -- max-size )
     vtpm-debug? IF
         ." Call to get-maximum-cmd-size" cr
