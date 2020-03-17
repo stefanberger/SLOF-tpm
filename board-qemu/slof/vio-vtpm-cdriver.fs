@@ -64,6 +64,18 @@ LOG-SIZE BUFFER: log-base
     THEN
 ;
 
+\ firmware API call
+: hash-log-extend-event2 ( pcr evt data-ptr data-len desc-ptr desc-len  -- rc )
+    vtpm-debug? IF
+        ." Call to hash-log-extend-event2" cr
+    THEN
+    false                                          ( ... is_elf )
+    tpm-hash-log-extend-event-buffer               ( rc )
+    vtpm-debug? IF
+        ." VTPM: Error code from tpm-hash-log-extend-event-buffer: " dup . cr
+    THEN
+;
+
 : open true ;
 : close ;
 
