@@ -17,6 +17,7 @@
 #include <string.h>
 #include <libelf.h>
 #include <byteorder.h>
+#include <helpers.h>
 
 struct ehdr32 {
 	uint32_t ei_ident;
@@ -50,6 +51,18 @@ struct phdr32 {
 	uint32_t p_align;
 };
 
+struct shdr32 {
+	uint32_t sh_name;
+	uint32_t sh_type;
+	uint32_t sh_flags;
+	uint32_t sh_addr;
+	uint32_t sh_offset;
+	uint32_t sh_size;
+	uint32_t sh_link;
+	uint32_t sh_info;
+	uint32_t sh_addralign;
+	uint32_t sh_entsize;
+};
 
 static struct phdr32*
 get_phdr32(void *file_addr)
@@ -190,4 +203,66 @@ elf_byteswap_header32(void *file_addr)
 		/* step to next header */
 		phdr = (struct phdr32 *)(((uint8_t *)phdr) + ehdr->e_phentsize);
 	}
+}
+
+/*
+ * Determine the size of an ELF image that has been loaded into
+ * a buffer larger than its size. We search all program headers
+ * and sections for the one that shows the farthest extent of the
+ * file.
+ * @return Return -1 on error, size of file otherwise.
+ */
+int elf_get_file_size32(const void *buffer, const long buffer_size)
+{
+	const struct ehdr32 *ehdr = (const struct ehdr32 *) buffer;
+	const void *buffer_end = buffer + buffer_size;
+	const struct phdr32 *phdr;
+	const struct shdr32 *shdr;
+	long elf_size = -1;
+	uint16_t entsize;
+	int do_swap;
+	unsigned i;
+
+	if (buffer_size < sizeof(struct ehdr) || ehdr->e_ehsize != 52)
+		return -1;
+
+#ifdef __BIG_ENDIAN__
+	do_swap = ehdr->ei_data != ELFDATA2MSB;
+#else
+	do_swap = ehdr->ei_data != ELFDATA2LSB;
+#endif
+
+	phdr = buffer + cond_bswap_32(ehdr->e_phoff, do_swap);
+	entsize = cond_bswap_16(ehdr->e_phentsize, do_swap);
+	for (i = 0; i < cond_bswap_16(ehdr->e_phnum, do_swap); i++) {
+		if ((void *)phdr + entsize > buffer_end)
+			return -1;
+
+		elf_size = MAX(cond_bswap_32(phdr->p_offset, do_swap) +
+			         cond_bswap_32(phdr->p_filesz, do_swap),
+			       elf_size);
+
+		/* step to next header */
+		phdr = (struct phdr32 *)(((uint8_t *)phdr) + entsize);
+	}
+
+	shdr = buffer + cond_bswap_32(ehdr->e_shoff, do_swap);
+	entsize = cond_bswap_16(ehdr->e_shentsize, do_swap);
+	for (i = 0; i < cond_bswap_16(ehdr->e_shnum, do_swap); i++) {
+		if ((void *)shdr + entsize > buffer_end)
+			return -1;
+
+		elf_size = MAX(cond_bswap_32(shdr->sh_offset, do_swap) +
+		                 cond_bswap_32(shdr->sh_size, do_swap),
+		               elf_size);
+
+		/* step to next header */
+		shdr = (struct shdr32 *)(((uint8_t *)shdr) + entsize);
+	}
+
+	elf_size = ROUNDUP(elf_size, 4);
+	if (elf_size > buffer_size)
+		return -1;
+
+	return elf_size;
 }

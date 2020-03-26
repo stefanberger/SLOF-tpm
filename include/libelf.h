@@ -96,4 +96,8 @@ void elf_relocate64(void *file_addr, signed long offset);
 
 int elf_forth_claim(void *addr, long size);
 
+int elf_get_file_size(const void *buffer, const long buffer_size);
+int elf_get_file_size32(const void *buffer, const long buffer_size);
+int elf_get_file_size64(const void *buffer, const long buffer_size);
+
 #endif				/* __LIBELF_H */

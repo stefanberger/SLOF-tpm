@@ -53,6 +53,20 @@ static inline void bswap_64p (uint64_t *x)
 	*x = __builtin_bswap64(*x);
 }
 
+static inline uint16_t cond_bswap_16 (uint16_t x, int swap)
+{
+	return swap ? bswap_16(x) : x;
+}
+
+static inline uint32_t cond_bswap_32 (uint32_t x, int swap)
+{
+	return swap ? bswap_32(x) : x;
+}
+
+static inline uint64_t cond_bswap_64 (uint64_t x, int swap)
+{
+	return swap ? bswap_64(x) : x;
+}
 
 /* gcc defines __BIG_ENDIAN__ on big endian targets */
 #ifdef __BIG_ENDIAN__
