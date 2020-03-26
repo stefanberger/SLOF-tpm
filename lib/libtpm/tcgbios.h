@@ -32,5 +32,9 @@ void tpm20_menu(void);
 void tpm_gpt_set_lba1(const uint8_t *addr, uint32_t length);
 void tpm_gpt_add_entry(const uint8_t *addr, uint32_t length);
 uint32_t tpm_measure_gpt(void);
+uint32_t tpm_hash_log_extend_event_file(uint32_t pcrindex, uint32_t eventtype,
+					const void *data, uint32_t datalen,
+					const char *desc, uint32_t desclen,
+					bool is_elf);
 
 #endif /* TCGBIOS_H */

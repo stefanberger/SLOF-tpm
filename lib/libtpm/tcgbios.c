@@ -33,6 +33,7 @@
 #include "helpers.h"
 #include "version.h"
 #include "OF.h"
+#include "libelf.h"
 
 #undef TCGBIOS_DEBUG
 //#define TCGBIOS_DEBUG
@@ -850,6 +851,40 @@ static uint32_t tpm_add_measurement_to_log(uint32_t pcrindex,
 	}
 	tpm20_build_digest(&le, hash, false);
 	return tpm_log_event_long(&le.hdr, digest_len, info, infolen);
+}
+
+/*
+ * Measure a file into the given PCR and log it with the given
+ * eventtype. If is_elf is true, try to determine the size of the
+ * ELF file and use its size rather than the much larger data buffer
+ * it is held in. In case of failure to detect the ELF file size,
+ * log an additional error.
+ */
+uint32_t tpm_hash_log_extend_event_file(uint32_t pcrindex, uint32_t eventtype,
+					const void *data, uint32_t datalen,
+					const char *desc, uint32_t desclen,
+					bool is_elf)
+{
+	long len;
+	const char *string;
+	uint32_t ret;
+
+	if (is_elf) {
+		len = elf_get_file_size(data, datalen);
+		if (len > 0) {
+			datalen = len;
+		} else {
+			string = "BAD ELF FILE";
+			ret = tpm_add_measurement_to_log(pcrindex, eventtype,
+					  string, strlen(string),
+					  (uint8_t *)string, strlen(string));
+			if (ret)
+				return ret;
+		}
+	}
+	return tpm_add_measurement_to_log(pcrindex, eventtype,
+					  desc, desclen,
+					  data, datalen);
 }
 
 /*
