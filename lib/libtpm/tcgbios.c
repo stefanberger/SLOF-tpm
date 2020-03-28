@@ -237,7 +237,7 @@ static int tpm20_build_digest(struct tpm_log_entry *le, const uint8_t *sha256,
 	struct tpms_pcr_selection *sel;
 	void *nsel, *end;
 	void *dest = le->hdr.digests + sizeof(struct TPML_DIGEST_VALUES);
-	uint32_t count;
+	uint32_t count, numAlgs;
 	struct TPMT_HA *v;
 	struct TPML_DIGEST_VALUES *vs;
 
@@ -245,7 +245,7 @@ static int tpm20_build_digest(struct tpm_log_entry *le, const uint8_t *sha256,
 	end = (void *)tpm_state.tpm20_pcr_selection +
 		tpm_state.tpm20_pcr_selection_size;
 
-	for (count = 0;
+	for (count = 0, numAlgs = 0;
 	     count < be32_to_cpu(tpm_state.tpm20_pcr_selection->count);
 	     count++) {
 		int hsize;
@@ -254,6 +254,12 @@ static int tpm20_build_digest(struct tpm_log_entry *le, const uint8_t *sha256,
 		nsel = (void*)sel + sizeof(*sel) + sizeOfSelect;
 		if (nsel > end)
 			break;
+
+		/* PCR 0-7 unused ? -- skip */
+		if (!sizeOfSelect || sel->pcrSelect[0] == 0) {
+			sel = nsel;
+			continue;
+		}
 
 		hsize = tpm20_get_hash_buffersize(be16_to_cpu(sel->hashAlg));
 		if (hsize < 0) {
@@ -280,6 +286,8 @@ static int tpm20_build_digest(struct tpm_log_entry *le, const uint8_t *sha256,
 
 		dest += sizeof(*v) + hsize;
 		sel = nsel;
+
+		numAlgs++;
 	}
 
 	if (sel != end) {
@@ -289,9 +297,9 @@ static int tpm20_build_digest(struct tpm_log_entry *le, const uint8_t *sha256,
 
 	vs = (void*)le->hdr.digests;
 	if (bigEndian)
-		vs->count = cpu_to_be32(count);
+		vs->count = cpu_to_be32(numAlgs);
 	else
-		vs->count = cpu_to_le32(count);
+		vs->count = cpu_to_le32(numAlgs);
 
 	return dest - (void*)le->hdr.digests;
 }
@@ -643,13 +651,13 @@ static int tpm20_write_EfiSpecIdEventStruct(void)
 	struct tpm_log_entry le = {
 		.hdr.eventtype = cpu_to_log32(EV_NO_ACTION),
 	};
-	uint32_t count;
+	uint32_t count, numAlgs;
 
 	sel = tpm_state.tpm20_pcr_selection->selections;
 	end = (void*)tpm_state.tpm20_pcr_selection +
 	      tpm_state.tpm20_pcr_selection_size;
 
-	for (count = 0;
+	for (count = 0, numAlgs = 0;
 	     count < be32_to_cpu(tpm_state.tpm20_pcr_selection->count);
 	     count++) {
 		int hsize;
@@ -658,6 +666,12 @@ static int tpm20_write_EfiSpecIdEventStruct(void)
 		nsel = (void*)sel + sizeof(*sel) + sizeOfSelect;
 		if (nsel > end)
 			break;
+
+		/* PCR 0-7 unused ? -- skip */
+		if (!sizeOfSelect || sel->pcrSelect[0] == 0) {
+			sel = nsel;
+			continue;
+		}
 
 		hsize = tpm20_get_hash_buffersize(be16_to_cpu(sel->hashAlg));
 		if (hsize < 0) {
@@ -673,9 +687,10 @@ static int tpm20_write_EfiSpecIdEventStruct(void)
 			return -1;
 		}
 
-		event.hdr.digestSizes[count].algorithmId =
+		event.hdr.digestSizes[numAlgs].algorithmId =
 			cpu_to_log16(be16_to_cpu(sel->hashAlg));
-		event.hdr.digestSizes[count].digestSize = cpu_to_log16(hsize);
+		event.hdr.digestSizes[numAlgs].digestSize = cpu_to_log16(hsize);
+		numAlgs++;
 
 		sel = nsel;
 	}
@@ -685,9 +700,9 @@ static int tpm20_write_EfiSpecIdEventStruct(void)
 		return -1;
 	}
 
-	event.hdr.numberOfAlgorithms = cpu_to_log32(count);
+	event.hdr.numberOfAlgorithms = cpu_to_log32(numAlgs);
 	event_size = offset_of(struct TCG_EfiSpecIdEventStruct,
-			       digestSizes[count]);
+			       digestSizes[numAlgs]);
 	vendorInfoSize = (void*)&event + event_size;
 	*vendorInfoSize = 0;
 	event_size += sizeof(*vendorInfoSize);
