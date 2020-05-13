@@ -12,7 +12,7 @@
 
 ." Populating " pwd cr
 
-false VALUE vtpm-debug?
+true VALUE vtpm-debug?
 0     VALUE vtpm-unit
 
 0     VALUE    log-base
