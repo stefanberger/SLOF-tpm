@@ -46,6 +46,17 @@ LOG-SIZE BUFFER: log-base
    tpm-driver-get-failure-reason           ( reason )
 ;
 
+\ firmware API call
+: hash-log-extend-event-buffer ( pcr evt data-ptr data-len descptr desc-len is_elf -- rc )
+    vtpm-debug? IF
+        ." Call to hash-log-extend-event-buffer" cr
+    THEN
+    tpm-hash-log-extend-event-buffer       ( rc )
+    dup 0<> IF
+        ." VTPM: Error code from tpm-hash-log-extend-event-buffer: " dup . cr
+    THEN
+;
+
 0 0 s" ibm,sml-efi-reformat-supported" property
 
 \ firmware API call
