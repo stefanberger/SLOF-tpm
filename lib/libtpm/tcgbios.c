@@ -951,6 +951,16 @@ uint32_t tpm_hash_log_extend_event_buffer(uint32_t pcrindex, uint32_t eventtype,
 					  data, datalen);
 }
 
+uint32_t tpm_2hash_ext_log(uint32_t pcrindex,
+			   uint32_t eventtype,
+			   const char *info, uint32_t infolen,
+			   const void *data, uint64_t datalen)
+{
+	return tpm_add_measurement_to_log(pcrindex, eventtype,
+					  info, infolen,
+					  data, datalen);
+}
+
 /*
  * Add an EV_ACTION measurement to the list of measurements
  */
