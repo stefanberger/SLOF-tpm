@@ -1106,6 +1106,29 @@ uint32_t tpm_measure_gpt(void)
 					  (const uint8_t *)uefi_gpt_data, sz);
 }
 
+/* convert a normal string of given length into a ucs-2 string */
+static char *string2ucs2(const char *str, size_t str_length,
+			 size_t *ucs2_length)
+{
+	char *ucs2;
+	size_t i;
+
+	if (str_length > 0) {
+		*ucs2_length = str_length * 2;
+		if (str[str_length - 1] != 0)
+			*ucs2_length += 2;
+	} else {
+		*ucs2_length = 2;
+	}
+	ucs2 = SLOF_alloc_mem(*ucs2_length);
+	if (ucs2) {
+		memset(ucs2, 0, *ucs2_length);
+		for (i = 0; i < str_length; i++)
+			ucs2[i * 2] = str[i];
+	}
+	return ucs2;
+}
+
 uint32_t tpm_measure_scrtm(void)
 {
 	uint32_t rc;
@@ -1115,19 +1138,25 @@ uint32_t tpm_measure_scrtm(void)
 	char *slof_text_start = (char *)&_slof_text;
 	uint32_t slof_text_length = (long)&_slof_text_end - (long)&_slof_text;
 	const char *scrtm = "S-CRTM Contents";
+	char *ucs2_version;
+	size_t ucs2_length;
 
 	version_end = strchr(version_start, '\r');
 	version_length = version_end - version_start;
 
-	dprintf("Measure S-CRTM Version: addr = %p, length = %d\n",
-		version_start, version_length);
+	ucs2_version = string2ucs2(version_start, version_length, &ucs2_length);
+	if (ucs2_version) {
+		dprintf("Measure S-CRTM Version: addr = %p, length = %d\n",
+			ucs2_version, ucs2_length);
 
-	rc = tpm_add_measurement_to_log(0, EV_S_CRTM_VERSION,
-					version_start, version_length,
-					(uint8_t *)version_start,
-					version_length);
-	if (rc)
-		return rc;
+		rc = tpm_add_measurement_to_log(0, EV_S_CRTM_VERSION,
+						ucs2_version, ucs2_length,
+						(uint8_t *)ucs2_version,
+						ucs2_length);
+		SLOF_free_mem(ucs2_version, ucs2_length);
+		if (rc)
+			return rc;
+	}
 
 	dprintf("Measure S-CRTM Content (text): start = %p, length = %d\n",
 		slof_text_start, slof_text_length);
