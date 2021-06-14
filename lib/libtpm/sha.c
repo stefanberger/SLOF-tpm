@@ -197,3 +197,45 @@ void sha1(const uint8_t *data, uint32_t length, uint8_t *hash)
 	sha1_do(&ctx, data, length);
 	memcpy(hash, &ctx.h[0], 20);
 }
+
+#ifdef MAIN
+
+#include <stdio.h>
+// gcc -DMAIN sha.c -o sha-test -I ../../include -I ../../slof -I ../../lib/libc/include
+int main(void)
+{
+    unsigned i, j;
+    uint8_t hash[20];
+    char buffer[70];
+
+    sha1("abc", 3, hash);
+    for (i = 0; i < sizeof(hash); i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    sha1("", 0, hash);
+    for (i = 0; i < sizeof(hash); i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    sha1("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", 448/8, hash);
+    for (i = 0; i < sizeof(hash); i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    for (i = 54; i < sizeof(buffer); i++) {
+        memset(buffer, 0, sizeof(buffer));
+        for (j = 0; j <= i; j++)
+	    buffer[j] = 'a';
+        printf("input %d: %s\n", i, buffer);
+        sha1(buffer, i, hash);
+        for (j = 0; j < sizeof(hash); j++) {
+            printf("%02x", hash[j]);
+        }
+        printf("\n");
+    }
+}
+#endif
