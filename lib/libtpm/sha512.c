@@ -246,3 +246,65 @@ void sha512(const uint8_t *data, uint32_t length, uint8_t *hash)
 	sha512_do(&ctx, data, length);
 	memcpy(hash, ctx.h, sizeof(ctx.h));
 }
+
+
+#ifdef MAIN
+
+#include <stdio.h>
+// gcc -DMAIN sha512.c -o test -I ../../include -I ../../slof -I ../../lib/libc/include
+int main(void)
+{
+    unsigned i, j;
+    uint8_t hash[64];
+    char buffer[128];
+
+    sha512("abc", 3, hash);
+    for (i = 0; i < sizeof(hash); i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    sha384("abc", 3, hash);
+    for (i = 0; i < 384/8; i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    sha512("", 0, hash);
+    for (i = 0; i < sizeof(hash); i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    sha384("", 0, hash);
+    for (i = 0; i < 384/8; i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    sha512("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", 448/8, hash);
+    for (i = 0; i < sizeof(hash); i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+    sha384("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", 448/8, hash);
+    for (i = 0; i < 384/8; i++) {
+        printf("%02x", hash[i]);
+    }
+    printf("\n");
+
+
+    for (i = 110; i < sizeof(buffer); i++) {
+        memset(buffer, 0, sizeof(buffer));
+        for (j = 0; j <= i; j++)
+	    buffer[j] = 'a';
+        printf("input %d: %s\n", i, buffer);
+        sha512(buffer, i, hash);
+        for (j = 0; j < sizeof(hash); j++) {
+            printf("%02x", hash[j]);
+        }
+        printf("\n");
+    }
+}
+#endif
